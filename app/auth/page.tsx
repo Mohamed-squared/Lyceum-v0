@@ -1,54 +1,59 @@
 "use client"
 
-import type React from "react"
-import { useState } from "react"
+import { useState, useTransition } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { BookOpen, Mail, Lock, User, ArrowLeft } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Mail, Lock, User, ArrowLeft, AlertCircle } from "lucide-react"
 import Link from "next/link"
-import { signIn, signUp } from "@/lib/api"
+import { Logo } from "@/components/ui/logo"
+import { signInWithEmail, signUpWithEmail, signInWithGoogle } from "@/lib/auth-actions"
 
 export default function AuthPage() {
-  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
 
-  const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setIsLoading(true)
-
-    const formData = new FormData(e.currentTarget)
+  const handleSignIn = async (formData: FormData) => {
+    setError(null)
     const email = formData.get("email") as string
     const password = formData.get("password") as string
 
-    try {
-      await signIn(email, password)
-      window.location.href = "/dashboard"
-    } catch (error) {
-      console.error("Sign in failed:", error)
-    } finally {
-      setIsLoading(false)
-    }
+    startTransition(async () => {
+      try {
+        await signInWithEmail(email, password)
+      } catch (error) {
+        setError(error instanceof Error ? error.message : "Sign in failed")
+      }
+    })
   }
 
-  const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setIsLoading(true)
-
-    const formData = new FormData(e.currentTarget)
+  const handleSignUp = async (formData: FormData) => {
+    setError(null)
     const name = formData.get("name") as string
     const email = formData.get("email") as string
     const password = formData.get("password") as string
 
-    try {
-      await signUp(email, password, name)
-      window.location.href = "/onboarding"
-    } catch (error) {
-      console.error("Sign up failed:", error)
-    } finally {
-      setIsLoading(false)
-    }
+    startTransition(async () => {
+      try {
+        await signUpWithEmail(email, password, name)
+      } catch (error) {
+        setError(error instanceof Error ? error.message : "Sign up failed")
+      }
+    })
+  }
+
+  const handleGoogleSignIn = () => {
+    setError(null)
+    startTransition(async () => {
+      try {
+        await signInWithGoogle()
+      } catch (error) {
+        setError(error instanceof Error ? error.message : "Google sign in failed")
+      }
+    })
   }
 
   return (
@@ -60,8 +65,7 @@ export default function AuthPage() {
             Back to Home
           </Link>
           <div className="flex items-center justify-center mb-4">
-            <BookOpen className="h-8 w-8 text-blue-600 mr-2" />
-            <h1 className="text-2xl font-bold">Lyceum</h1>
+            <Logo size="lg" />
           </div>
           <p className="text-muted-foreground">Join the future of learning</p>
         </div>
@@ -72,6 +76,13 @@ export default function AuthPage() {
             <CardDescription>Sign in to your account or create a new one</CardDescription>
           </CardHeader>
           <CardContent>
+            {error && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
             <Tabs defaultValue="signin" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="signin">Sign In</TabsTrigger>
@@ -79,7 +90,7 @@ export default function AuthPage() {
               </TabsList>
 
               <TabsContent value="signin">
-                <form onSubmit={handleSignIn} className="space-y-4">
+                <form action={handleSignIn} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
                     <div className="relative">
@@ -91,6 +102,7 @@ export default function AuthPage() {
                         placeholder="Enter your email"
                         className="pl-10"
                         required
+                        disabled={isPending}
                       />
                     </div>
                   </div>
@@ -105,6 +117,7 @@ export default function AuthPage() {
                         placeholder="Enter your password"
                         className="pl-10"
                         required
+                        disabled={isPending}
                       />
                     </div>
                   </div>
@@ -113,14 +126,14 @@ export default function AuthPage() {
                       Forgot your password?
                     </Link>
                   </div>
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? "Signing in..." : "Sign In"}
+                  <Button type="submit" className="w-full" disabled={isPending}>
+                    {isPending ? "Signing in..." : "Sign In"}
                   </Button>
                 </form>
               </TabsContent>
 
               <TabsContent value="signup">
-                <form onSubmit={handleSignUp} className="space-y-4">
+                <form action={handleSignUp} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="name">Full Name</Label>
                     <div className="relative">
@@ -132,6 +145,7 @@ export default function AuthPage() {
                         placeholder="Enter your full name"
                         className="pl-10"
                         required
+                        disabled={isPending}
                       />
                     </div>
                   </div>
@@ -146,6 +160,7 @@ export default function AuthPage() {
                         placeholder="Enter your email"
                         className="pl-10"
                         required
+                        disabled={isPending}
                       />
                     </div>
                   </div>
@@ -160,11 +175,12 @@ export default function AuthPage() {
                         placeholder="Create a password"
                         className="pl-10"
                         required
+                        disabled={isPending}
                       />
                     </div>
                   </div>
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? "Creating account..." : "Create Account"}
+                  <Button type="submit" className="w-full" disabled={isPending}>
+                    {isPending ? "Creating account..." : "Create Account"}
                   </Button>
                 </form>
               </TabsContent>
@@ -179,7 +195,7 @@ export default function AuthPage() {
                   <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
                 </div>
               </div>
-              <Button variant="outline" className="w-full mt-4">
+              <Button variant="outline" className="w-full mt-4" onClick={handleGoogleSignIn} disabled={isPending}>
                 <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                   <path
                     d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -198,7 +214,7 @@ export default function AuthPage() {
                     fill="#EA4335"
                   />
                 </svg>
-                Continue with Google
+                {isPending ? "Connecting..." : "Continue with Google"}
               </Button>
             </div>
           </CardContent>

@@ -1,8 +1,9 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Menu, BookOpen } from "lucide-react"
+import { Menu } from "lucide-react"
 import { useSidebar } from "@/lib/contexts/SidebarContext"
+import { Logo } from "@/components/ui/logo"
 import Link from "next/link"
 
 export function Header() {
@@ -15,9 +16,8 @@ export function Header() {
           <Menu className="h-6 w-6" />
         </Button>
 
-        <Link href="/dashboard" className="flex items-center space-x-2">
-          <BookOpen className="h-6 w-6 text-primary" />
-          <span className="text-xl font-bold">Lyceum</span>
+        <Link href="/dashboard" className="flex items-center">
+          <Logo size="md" />
         </Link>
       </div>
     </header>

@@ -8,6 +8,7 @@ import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Logo } from "@/components/ui/logo"
 import {
   Home,
   BookOpen,
@@ -25,7 +26,7 @@ import {
   X,
   ChevronDown,
 } from "lucide-react"
-import { signOut } from "@/lib/api"
+import { signOut } from "@/lib/auth-actions"
 import { useUser } from "@/lib/contexts/UserContext"
 
 const navigationItems = [
@@ -51,7 +52,6 @@ export function StandardSidebar() {
   const handleSignOut = async () => {
     try {
       await signOut()
-      router.push("/auth")
     } catch (error) {
       console.error("Sign out failed:", error)
     }
@@ -76,12 +76,7 @@ export function StandardSidebar() {
       <div className="fixed left-0 top-0 h-full w-80 bg-background border-r z-50 flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-sm">L</span>
-            </div>
-            <span className="font-bold text-lg">Lyceum</span>
-          </div>
+          <Logo size="md" />
           <Button variant="ghost" size="sm" onClick={closeSidebar}>
             <X className="h-4 w-4" />
           </Button>

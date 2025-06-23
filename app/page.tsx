@@ -1,41 +1,75 @@
+"use client"
+
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { BookOpen, Users, Trophy, Sparkles, ArrowRight } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Logo } from "@/components/ui/logo"
+import { ArrowRight, Users, Trophy, Brain, Target, Sparkles } from "lucide-react"
 import Link from "next/link"
 
-export default function HomePage() {
+export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-background to-purple-50 dark:from-blue-950/20 dark:via-background dark:to-purple-950/20">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      {/* Header */}
+      <header className="border-b bg-background/80 backdrop-blur-sm">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <Logo size="lg" />
+          <div className="flex items-center space-x-4">
+            <Link href="/auth">
+              <Button variant="ghost">Sign In</Button>
+            </Link>
+            <Link href="/auth">
+              <Button>Get Started</Button>
+            </Link>
+          </div>
+        </div>
+      </header>
+
       {/* Hero Section */}
-      <section className="container mx-auto px-4 py-16 text-center">
+      <section className="container mx-auto px-4 py-20 text-center">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-5xl font-bold text-foreground mb-6">
-            Welcome to <span className="text-primary">Lyceum</span>
+          <Badge variant="secondary" className="mb-4">
+            <Sparkles className="h-3 w-3 mr-1" />
+            AI-Powered Learning Platform
+          </Badge>
+          <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            Welcome to Lyceum
           </h1>
-          <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
+          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
             The AI-powered collaborative learning platform where knowledge meets innovation. Create comprehensive
             courses, connect with study partners, and learn with personalized AI tutoring.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button asChild size="lg">
-              <Link href="/auth">
-                Get Started <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="lg">
-              <Link href="/courses">Browse Courses</Link>
-            </Button>
+            <Link href="/auth">
+              <Button size="lg" className="text-lg px-8">
+                Get Started
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </Link>
+            <Link href="/courses">
+              <Button variant="outline" size="lg" className="text-lg px-8">
+                Browse Courses
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* Features Grid */}
-      <section className="container mx-auto px-4 py-16">
-        <h2 className="text-3xl font-bold text-center mb-12 text-foreground">Platform Features</h2>
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card className="text-center hover:shadow-lg transition-shadow">
+      {/* Features Section */}
+      <section className="container mx-auto px-4 py-20">
+        <div className="text-center mb-16">
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">Powerful Features</h2>
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            Everything you need to create, learn, and excel in your academic journey
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <Card className="text-center">
             <CardHeader>
-              <Sparkles className="h-12 w-12 text-blue-600 mx-auto mb-4" />
+              <div className="mx-auto w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center mb-4">
+                <Brain className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              </div>
               <CardTitle>AI Course Creation</CardTitle>
             </CardHeader>
             <CardContent>
@@ -46,9 +80,11 @@ export default function HomePage() {
             </CardContent>
           </Card>
 
-          <Card className="text-center hover:shadow-lg transition-shadow">
+          <Card className="text-center">
             <CardHeader>
-              <Users className="h-12 w-12 text-green-600 mx-auto mb-4" />
+              <div className="mx-auto w-12 h-12 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center mb-4">
+                <Users className="h-6 w-6 text-green-600 dark:text-green-400" />
+              </div>
               <CardTitle>Study Partners</CardTitle>
             </CardHeader>
             <CardContent>
@@ -58,9 +94,11 @@ export default function HomePage() {
             </CardContent>
           </Card>
 
-          <Card className="text-center hover:shadow-lg transition-shadow">
+          <Card className="text-center">
             <CardHeader>
-              <Trophy className="h-12 w-12 text-yellow-600 mx-auto mb-4" />
+              <div className="mx-auto w-12 h-12 bg-yellow-100 dark:bg-yellow-900 rounded-lg flex items-center justify-center mb-4">
+                <Trophy className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
+              </div>
               <CardTitle>Gamification</CardTitle>
             </CardHeader>
             <CardContent>
@@ -70,9 +108,11 @@ export default function HomePage() {
             </CardContent>
           </Card>
 
-          <Card className="text-center hover:shadow-lg transition-shadow">
+          <Card className="text-center">
             <CardHeader>
-              <BookOpen className="h-12 w-12 text-purple-600 mx-auto mb-4" />
+              <div className="mx-auto w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center mb-4">
+                <Target className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+              </div>
               <CardTitle>Personalized Learning</CardTitle>
             </CardHeader>
             <CardContent>
@@ -84,40 +124,33 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Quick Stats */}
-      <section className="bg-muted/50 py-16">
-        <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-3 gap-8 text-center">
-            <div>
-              <div className="text-4xl font-bold text-primary mb-2">1,000+</div>
-              <div className="text-muted-foreground">Courses Available</div>
-            </div>
-            <div>
-              <div className="text-4xl font-bold text-primary mb-2">50,000+</div>
-              <div className="text-muted-foreground">Active Learners</div>
-            </div>
-            <div>
-              <div className="text-4xl font-bold text-primary mb-2">4</div>
-              <div className="text-muted-foreground">Languages Supported</div>
-            </div>
-          </div>
-        </div>
+      {/* CTA Section */}
+      <section className="container mx-auto px-4 py-20">
+        <Card className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+          <CardContent className="text-center py-16">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to Transform Your Learning?</h2>
+            <p className="text-xl mb-8 opacity-90 max-w-2xl mx-auto">
+              Join thousands of students already using Lyceum to accelerate their academic success
+            </p>
+            <Link href="/auth">
+              <Button size="lg" variant="secondary" className="text-lg px-8">
+                Start Learning Today
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
       </section>
 
-      {/* CTA Section */}
-      <section className="container mx-auto px-4 py-16 text-center">
-        <div className="max-w-2xl mx-auto">
-          <h2 className="text-3xl font-bold mb-6 text-foreground">Ready to Transform Your Learning?</h2>
-          <p className="text-muted-foreground mb-8">
-            Join thousands of learners who are already experiencing the future of education with Lyceum.
-          </p>
-          <Button asChild size="lg">
-            <Link href="/auth">
-              Start Learning Today <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-          </Button>
+      {/* Footer */}
+      <footer className="border-t bg-background/80 backdrop-blur-sm">
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex flex-col md:flex-row items-center justify-between">
+            <Logo size="md" />
+            <p className="text-muted-foreground mt-4 md:mt-0">© 2024 Lyceum. All rights reserved.</p>
+          </div>
         </div>
-      </section>
+      </footer>
     </div>
   )
 }
