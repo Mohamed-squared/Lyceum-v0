@@ -1,8 +1,9 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useFormState, useFormStatus } from "react-dom"
+import { useRouter } from "next/navigation" // For redirecting after successful action
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -13,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
+import { toast } from "@/components/ui/use-toast" // Assuming toast is set up
 import {
   BookOpen,
   ArrowLeft,
@@ -30,19 +32,99 @@ import {
   Twitter,
   Github,
   Linkedin,
+  Loader2, // For pending state
 } from "lucide-react"
 import Link from "next/link"
-import { completeOnboarding, type OnboardingData } from "@/lib/api"
-import { languageLabels, levelOfStudyOptions } from "@/lib/mock-data"
+// REMOVE: import { completeOnboarding, type OnboardingData } from "@/lib/api"
+import { onboardingAction } from "@/app/actions/onboarding" // Import Server Action
+import { languageLabels, levelOfStudyOptions } from "@/lib/mock-data" // Keep for dropdowns
 import { ImageCropperModal } from "@/components/ImageCropperModal"
 import { ProfilePreviewCard } from "@/components/ProfilePreviewCard"
 
 const TOTAL_STEPS = 11
 
+// Helper function to convert base64 data URI to File object
+function dataURItoFile(dataURI: string, filename: string): File {
+  const arr = dataURI.split(',');
+  if (arr.length < 2) {
+    throw new Error('Invalid data URI');
+  }
+  const mimeMatch = arr[0].match(/:(.*?);/);
+  if (!mimeMatch || mimeMatch.length < 2) {
+    throw new Error('Could not parse MIME type from data URI');
+  }
+  const mime = mimeMatch[1];
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new File([u8arr], filename, { type: mime });
+}
+
+
+// Define the structure for client-side form data
+interface ClientOnboardingData {
+  displayName: string;
+  role: "standard" | "educator";
+  languagePreferences: {
+    interface: string;
+    explanation: string;
+    courseMaterial: string;
+  };
+  major: string;
+  levelOfStudy: string;
+  studiedSubjects: string[];
+  interestedMajors: string[];
+  hobbies: string[];
+  socialProfiles: {
+    twitter?: string;
+    github?: string;
+    linkedin?: string;
+  };
+  bio: string;
+  agreements: {
+    termsAndPrivacy: boolean;
+    personalizedContent: boolean;
+    newsletter: boolean;
+  };
+  // userId will be handled by the server action or passed if available
+  userId?: string;
+}
+
+const initialState = {
+  message: "",
+  errors: null,
+  redirectUrl: null,
+};
+
+function SubmitButton({ disabled }: { disabled: boolean }) {
+  const { pending } = useFormStatus();
+  return (
+    <Button type="submit" disabled={disabled || pending} className="flex items-center">
+      {pending ? (
+        <>
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Setting up...
+        </>
+      ) : (
+        <>
+          Complete Setup & Enter Lyceum <CheckCircle className="h-4 w-4 ml-2" />
+        </>
+      )}
+    </Button>
+  );
+}
+
+
 export default function OnboardingPage() {
   const [currentStep, setCurrentStep] = useState(1)
-  const [isLoading, setIsLoading] = useState(false)
-  const [formData, setFormData] = useState<Partial<OnboardingData>>({
+  const router = useRouter();
+
+  // useFormState for handling server action responses
+  const [state, formAction] = useFormState(onboardingAction, initialState)
+
+  const [formData, setFormData] = useState<Partial<ClientOnboardingData>>({
     displayName: "",
     role: "standard",
     languagePreferences: {
@@ -64,10 +146,10 @@ export default function OnboardingPage() {
     },
   })
 
-  const [profileImageFile, setProfileImageFile] = useState<string>("")
-  const [bannerImageFile, setBannerImageFile] = useState<string>("")
-  const [croppedProfileImage, setCroppedProfileImage] = useState<string>("")
-  const [croppedBannerImage, setCroppedBannerImage] = useState<string>("")
+  // Images are handled separately and converted to File objects on submission
+  const [croppedProfileImage, setCroppedProfileImage] = useState<string>("") // base64
+  const [croppedBannerImage, setCroppedBannerImage] = useState<string>("") // base64
+
   const [cropperModal, setCropperModal] = useState<{
     isOpen: boolean
     imageSrc: string
@@ -80,63 +162,62 @@ export default function OnboardingPage() {
     type: "profile",
   })
 
-  const updateFormData = (field: string, value: any) => {
+  useEffect(() => {
+    if (state?.redirectUrl) {
+      router.push(state.redirectUrl);
+    }
+    if (state?.message && !state.errors) { // Success message
+      toast({ title: "Success", description: state.message });
+    }
+    if (state?.errors) { // Error message
+        const errorMessages = Object.values(state.errors).flat().join(", ");
+        toast({ title: "Onboarding Error", description: errorMessages || state.message || "An unknown error occurred.", variant: "destructive" });
+    }
+  }, [state, router]);
+
+
+  const updateFormData = (field: keyof ClientOnboardingData, value: any) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
     }))
   }
 
-  const updateNestedFormData = (parent: string, field: string, value: any) => {
+  const updateNestedFormData = (parent: keyof ClientOnboardingData, field: string, value: any) => {
     setFormData((prev) => ({
       ...prev,
       [parent]: {
-        ...prev[parent as keyof OnboardingData],
+        ...(prev[parent] as object), // Type assertion
         [field]: value,
       },
     }))
   }
 
   const addTag = (field: "studiedSubjects" | "interestedMajors" | "hobbies", value: string) => {
-    if (value.trim() && !formData[field]?.includes(value.trim())) {
-      updateFormData(field, [...(formData[field] || []), value.trim()])
+    if (value.trim() && !(formData[field] as string[])?.includes(value.trim())) {
+      updateFormData(field, [...(formData[field] as string[] || []), value.trim()])
     }
   }
 
   const removeTag = (field: "studiedSubjects" | "interestedMajors" | "hobbies", value: string) => {
-    updateFormData(field, formData[field]?.filter((item) => item !== value) || [])
+    updateFormData(field, (formData[field]as string[])?.filter((item) => item !== value) || [])
   }
 
   const canProceed = () => {
+    // Validation logic remains the same
     switch (currentStep) {
-      case 1:
-        return formData.displayName?.trim()
-      case 2:
-        return formData.role
-      case 3:
-        return (
-          formData.languagePreferences?.interface &&
-          formData.languagePreferences?.explanation &&
-          formData.languagePreferences?.courseMaterial
-        )
-      case 4:
-        return formData.major?.trim()
-      case 5:
-        return formData.levelOfStudy
-      case 6:
-        return (formData.studiedSubjects?.length || 0) > 0
-      case 7:
-        return (formData.interestedMajors?.length || 0) > 0
-      case 8:
-        return (formData.hobbies?.length || 0) > 0
-      case 9:
-        return true // Social profiles are optional
-      case 10:
-        return formData.bio?.trim()
-      case 11:
-        return formData.agreements?.termsAndPrivacy
-      default:
-        return false
+      case 1: return !!formData.displayName?.trim();
+      case 2: return !!formData.role;
+      case 3: return !!(formData.languagePreferences?.interface && formData.languagePreferences?.explanation && formData.languagePreferences?.courseMaterial);
+      case 4: return !!formData.major?.trim();
+      case 5: return !!formData.levelOfStudy;
+      case 6: return (formData.studiedSubjects?.length || 0) > 0;
+      case 7: return (formData.interestedMajors?.length || 0) > 0;
+      case 8: return (formData.hobbies?.length || 0) > 0;
+      case 9: return true; // Social profiles are optional
+      case 10: return !!formData.bio?.trim();
+      case 11: return !!formData.agreements?.termsAndPrivacy;
+      default: return false;
     }
   }
 
@@ -152,21 +233,60 @@ export default function OnboardingPage() {
     }
   }
 
-  const handleComplete = async () => {
-    if (!canProceed()) return
+  // This function will be called by the form's onSubmit
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault(); // Prevent default form submission if not using formAction directly on button
+    if (!canProceed()) return;
 
-    setIsLoading(true)
-    try {
-      await completeOnboarding(formData as OnboardingData)
-      window.location.href = "/dashboard"
-    } catch (error) {
-      console.error("Failed to complete onboarding:", error)
-    } finally {
-      setIsLoading(false)
+    const actionFormData = new FormData();
+
+    // Append all simple fields
+    actionFormData.append("displayName", formData.displayName || "");
+    actionFormData.append("role", formData.role || "standard"); // Server action might have different type
+    actionFormData.append("bio", formData.bio || "");
+
+    // Append complex objects as JSON strings
+    if (formData.languagePreferences) actionFormData.append("languagePreferences", JSON.stringify(formData.languagePreferences));
+    if (formData.major) actionFormData.append("major", formData.major);
+    if (formData.levelOfStudy) actionFormData.append("levelOfStudy", formData.levelOfStudy);
+    if (formData.studiedSubjects) actionFormData.append("studiedSubjects", JSON.stringify(formData.studiedSubjects));
+    if (formData.interestedMajors) actionFormData.append("interestedMajors", JSON.stringify(formData.interestedMajors));
+    if (formData.hobbies) actionFormData.append("hobbies", JSON.stringify(formData.hobbies));
+    if (formData.socialProfiles) actionFormData.append("socialProfiles", JSON.stringify(formData.socialProfiles));
+    if (formData.agreements) actionFormData.append("agreements", JSON.stringify(formData.agreements));
+
+    // TODO: Securely get and append userId. This is a placeholder.
+    // This might come from a session context or a parent component after authentication.
+    // For now, the server action might need to derive this from the session.
+    // If your server action `onboardingAction` strictly requires `userId` in FormData,
+    // you'll need to ensure it's available here.
+    if (formData.userId) {
+         actionFormData.append("userId", formData.userId);
+    } else {
+        // console.warn("userId is not available for onboarding action.");
+        // Depending on server action setup, this might be acceptable if it gets userId from session
     }
-  }
 
-  const TagInput = ({
+
+    // Convert base64 images to File objects and append
+    if (croppedProfileImage) {
+      try {
+        const profileFile = dataURItoFile(croppedProfileImage, "profile.png");
+        actionFormData.append("avatarFile", profileFile);
+      } catch (e) { console.error("Error converting profile image:", e); }
+    }
+    if (croppedBannerImage) {
+       try {
+        const bannerFile = dataURItoFile(croppedBannerImage, "banner.png");
+        actionFormData.append("bannerFile", bannerFile);
+      } catch (e) { console.error("Error converting banner image:", e); }
+    }
+
+    formAction(actionFormData);
+  };
+
+
+  const TagInput = ({ /* ... props remain same ... */
     field,
     placeholder,
   }: {
@@ -190,9 +310,10 @@ export default function OnboardingPage() {
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyPress={handleKeyPress}
+          name={`${field}_input`} // Add name for potential non-JS scenarios, though less relevant here
         />
         <div className="flex flex-wrap gap-2">
-          {formData[field]?.map((tag, index) => (
+          {(formData[field] as string[])?.map((tag, index) => (
             <Badge key={index} variant="secondary" className="flex items-center gap-1">
               {tag}
               <X className="h-3 w-3 cursor-pointer" onClick={() => removeTag(field, tag)} />
@@ -201,8 +322,9 @@ export default function OnboardingPage() {
         </div>
       </div>
     )
-  }
+  };
 
+  // handleImageUpload and handleCropComplete remain largely the same
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>, type: "profile" | "banner") => {
     const file = event.target.files?.[0]
     if (file) {
@@ -218,7 +340,7 @@ export default function OnboardingPage() {
       }
       reader.readAsDataURL(file)
     }
-  }
+  };
 
   const handleCropComplete = (croppedImageData: string) => {
     if (cropperModal.type === "profile") {
@@ -227,9 +349,14 @@ export default function OnboardingPage() {
       setCroppedBannerImage(croppedImageData)
     }
     setCropperModal((prev) => ({ ...prev, isOpen: false }))
-  }
+  };
 
   const renderStep = () => {
+    // Logic for rendering steps remains mostly the same.
+    // Input fields should ideally have `name` attributes if we were doing a full non-JS compatible form,
+    // but since we construct FormData manually for the server action, it's less critical here.
+    // However, for consistency and accessibility, adding `name` attributes is good practice.
+    // For brevity, I'll skip adding all `name` attributes in this diff, assuming manual FormData construction.
     switch (currentStep) {
       case 1:
         return (
@@ -243,6 +370,7 @@ export default function OnboardingPage() {
               <Label htmlFor="displayName">What should we call you?</Label>
               <Input
                 id="displayName"
+                name="displayName" // Added name
                 placeholder="Enter your display name"
                 value={formData.displayName || ""}
                 onChange={(e) => updateFormData("displayName", e.target.value)}
@@ -259,20 +387,24 @@ export default function OnboardingPage() {
               <h2 className="text-2xl font-bold">What's your role?</h2>
               <p className="text-muted-foreground">This helps us customize your experience.</p>
             </div>
+            {/* For RadioGroup with server actions, ensure values are correctly submitted.
+                Manual FormData construction handles this. If using native form submission,
+                each RadioGroupItem would need a `name` attribute (e.g., name="role") and `value`.
+            */}
             <RadioGroup
               value={formData.role}
-              onValueChange={(value) => updateFormData("role", value)}
+              onValueChange={(value) => updateFormData("role", value as "standard" | "educator")}
               className="grid grid-cols-1 gap-4"
             >
               <div className="flex items-center space-x-2 border rounded-lg p-4 cursor-pointer hover:bg-accent">
-                <RadioGroupItem value="standard" id="student" />
+                <RadioGroupItem value="standard" id="student" name="role"/>
                 <Label htmlFor="student" className="flex-1 cursor-pointer">
                   <div className="font-semibold">I am a Student</div>
                   <div className="text-sm text-muted-foreground">Learning new subjects and skills</div>
                 </Label>
               </div>
               <div className="flex items-center space-x-2 border rounded-lg p-4 cursor-pointer hover:bg-accent">
-                <RadioGroupItem value="educator" id="educator" />
+                <RadioGroupItem value="educator" id="educator" name="role"/>
                 <Label htmlFor="educator" className="flex-1 cursor-pointer">
                   <div className="font-semibold">I am an Educator</div>
                   <div className="text-sm text-muted-foreground">Teaching and creating courses</div>
@@ -281,8 +413,11 @@ export default function OnboardingPage() {
             </RadioGroup>
           </div>
         )
+      // ... other cases remain similar, ensure relevant inputs have `name` if not constructing FormData manually.
+      // For brevity, I will assume manual FormData construction is sufficient.
+      // The key change is the final submit button and the form wrapper.
 
-      case 3:
+      case 3: // Language Preferences
         return (
           <div className="space-y-4">
             <div className="text-center space-y-2">
@@ -294,62 +429,41 @@ export default function OnboardingPage() {
               <div className="space-y-2">
                 <Label>Interface Language</Label>
                 <Select
+                  name="languagePreferences.interface"
                   value={formData.languagePreferences?.interface}
                   onValueChange={(value) => updateNestedFormData("languagePreferences", "interface", value)}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select interface language" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(languageLabels).map(([key, label]) => (
-                      <SelectItem key={key} value={key}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
+                  <SelectTrigger><SelectValue placeholder="Select interface language" /></SelectTrigger>
+                  <SelectContent>{Object.entries(languageLabels).map(([key, label]) => (<SelectItem key={key} value={key}>{label}</SelectItem>))}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label>Explanation Language</Label>
                 <Select
+                  name="languagePreferences.explanation"
                   value={formData.languagePreferences?.explanation}
                   onValueChange={(value) => updateNestedFormData("languagePreferences", "explanation", value)}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select explanation language" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(languageLabels).map(([key, label]) => (
-                      <SelectItem key={key} value={key}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
+                  <SelectTrigger><SelectValue placeholder="Select explanation language" /></SelectTrigger>
+                  <SelectContent>{Object.entries(languageLabels).map(([key, label]) => (<SelectItem key={key} value={key}>{label}</SelectItem>))}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label>Course Material Language</Label>
                 <Select
+                  name="languagePreferences.courseMaterial"
                   value={formData.languagePreferences?.courseMaterial}
                   onValueChange={(value) => updateNestedFormData("languagePreferences", "courseMaterial", value)}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select course material language" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(languageLabels).map(([key, label]) => (
-                      <SelectItem key={key} value={key}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
+                  <SelectTrigger><SelectValue placeholder="Select course material language" /></SelectTrigger>
+                  <SelectContent>{Object.entries(languageLabels).map(([key, label]) => (<SelectItem key={key} value={key}>{label}</SelectItem>))}</SelectContent>
                 </Select>
               </div>
             </div>
           </div>
         )
 
-      case 4:
+      case 4: // Major
         return (
           <div className="space-y-4">
             <div className="text-center space-y-2">
@@ -359,17 +473,12 @@ export default function OnboardingPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="major">Major/Field of Study</Label>
-              <Input
-                id="major"
-                placeholder="e.g., Computer Science, Physics, Literature"
-                value={formData.major || ""}
-                onChange={(e) => updateFormData("major", e.target.value)}
-              />
+              <Input id="major" name="major" placeholder="e.g., Computer Science, Physics, Literature" value={formData.major || ""} onChange={(e) => updateFormData("major", e.target.value)} />
             </div>
           </div>
         )
 
-      case 5:
+      case 5: // Level of Study
         return (
           <div className="space-y-4">
             <div className="text-center space-y-2">
@@ -379,294 +488,59 @@ export default function OnboardingPage() {
             </div>
             <div className="space-y-2">
               <Label>Level of Study</Label>
-              <Select value={formData.levelOfStudy} onValueChange={(value) => updateFormData("levelOfStudy", value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select your level" />
-                </SelectTrigger>
-                <SelectContent>
-                  {levelOfStudyOptions.map((level) => (
-                    <SelectItem key={level} value={level}>
-                      {level}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
+              <Select name="levelOfStudy" value={formData.levelOfStudy} onValueChange={(value) => updateFormData("levelOfStudy", value)}>
+                <SelectTrigger><SelectValue placeholder="Select your level" /></SelectTrigger>
+                <SelectContent>{levelOfStudyOptions.map((level) => (<SelectItem key={level} value={level}>{level}</SelectItem>))}</SelectContent>
               </Select>
             </div>
           </div>
         )
 
-      case 6:
-        return (
-          <div className="space-y-4">
-            <div className="text-center space-y-2">
-              <BookOpen className="h-12 w-12 text-blue-600 mx-auto" />
-              <h2 className="text-2xl font-bold">Studied Subjects</h2>
-              <p className="text-muted-foreground">What subjects have you studied? Press Enter to add each one.</p>
-            </div>
-            <TagInput field="studiedSubjects" placeholder="Type a subject and press Enter" />
-          </div>
-        )
+      case 6: return ( <div className="space-y-4"> <div className="text-center space-y-2"> <BookOpen className="h-12 w-12 text-blue-600 mx-auto" /> <h2 className="text-2xl font-bold">Studied Subjects</h2> <p className="text-muted-foreground">What subjects have you studied? Press Enter to add each one.</p> </div> <TagInput field="studiedSubjects" placeholder="Type a subject and press Enter" /> </div> )
+      case 7: return ( <div className="space-y-4"> <div className="text-center space-y-2"> <Target className="h-12 w-12 text-blue-600 mx-auto" /> <h2 className="text-2xl font-bold">Interested Majors</h2> <p className="text-muted-foreground">What other fields interest you? Press Enter to add each one.</p> </div> <TagInput field="interestedMajors" placeholder="Type a field and press Enter" /> </div> )
+      case 8: return ( <div className="space-y-4"> <div className="text-center space-y-2"> <Heart className="h-12 w-12 text-blue-600 mx-auto" /> <h2 className="text-2xl font-bold">Hobbies & Interests</h2> <p className="text-muted-foreground"> What do you enjoy doing in your free time? Press Enter to add each one. </p> </div> <TagInput field="hobbies" placeholder="Type a hobby and press Enter" /> </div> )
 
-      case 7:
+      case 9: // Social Profiles
         return (
           <div className="space-y-4">
-            <div className="text-center space-y-2">
-              <Target className="h-12 w-12 text-blue-600 mx-auto" />
-              <h2 className="text-2xl font-bold">Interested Majors</h2>
-              <p className="text-muted-foreground">What other fields interest you? Press Enter to add each one.</p>
-            </div>
-            <TagInput field="interestedMajors" placeholder="Type a field and press Enter" />
-          </div>
-        )
-
-      case 8:
-        return (
-          <div className="space-y-4">
-            <div className="text-center space-y-2">
-              <Heart className="h-12 w-12 text-blue-600 mx-auto" />
-              <h2 className="text-2xl font-bold">Hobbies & Interests</h2>
-              <p className="text-muted-foreground">
-                What do you enjoy doing in your free time? Press Enter to add each one.
-              </p>
-            </div>
-            <TagInput field="hobbies" placeholder="Type a hobby and press Enter" />
-          </div>
-        )
-
-      case 9:
-        return (
-          <div className="space-y-4">
-            <div className="text-center space-y-2">
-              <Share2 className="h-12 w-12 text-blue-600 mx-auto" />
-              <h2 className="text-2xl font-bold">Social Profiles</h2>
-              <p className="text-muted-foreground">Connect your social profiles (optional).</p>
-            </div>
+            <div className="text-center space-y-2"> <Share2 className="h-12 w-12 text-blue-600 mx-auto" /> <h2 className="text-2xl font-bold">Social Profiles</h2> <p className="text-muted-foreground">Connect your social profiles (optional).</p> </div>
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="twitter">Twitter</Label>
-                <div className="relative">
-                  <Twitter className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="twitter"
-                    placeholder="@username"
-                    className="pl-10"
-                    value={formData.socialProfiles?.twitter || ""}
-                    onChange={(e) => updateNestedFormData("socialProfiles", "twitter", e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="github">GitHub</Label>
-                <div className="relative">
-                  <Github className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="github"
-                    placeholder="username"
-                    className="pl-10"
-                    value={formData.socialProfiles?.github || ""}
-                    onChange={(e) => updateNestedFormData("socialProfiles", "github", e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="linkedin">LinkedIn</Label>
-                <div className="relative">
-                  <Linkedin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="linkedin"
-                    placeholder="profile-name"
-                    className="pl-10"
-                    value={formData.socialProfiles?.linkedin || ""}
-                    onChange={(e) => updateNestedFormData("socialProfiles", "linkedin", e.target.value)}
-                  />
-                </div>
-              </div>
+              <div className="space-y-2"> <Label htmlFor="twitter">Twitter</Label> <div className="relative"> <Twitter className="absolute left-3 top-3 h-4 w-4 text-gray-400" /> <Input id="twitter" name="socialProfiles.twitter" placeholder="@username" className="pl-10" value={formData.socialProfiles?.twitter || ""} onChange={(e) => updateNestedFormData("socialProfiles", "twitter", e.target.value)} /> </div> </div>
+              <div className="space-y-2"> <Label htmlFor="github">GitHub</Label> <div className="relative"> <Github className="absolute left-3 top-3 h-4 w-4 text-gray-400" /> <Input id="github" name="socialProfiles.github" placeholder="username" className="pl-10" value={formData.socialProfiles?.github || ""} onChange={(e) => updateNestedFormData("socialProfiles", "github", e.target.value)} /> </div> </div>
+              <div className="space-y-2"> <Label htmlFor="linkedin">LinkedIn</Label> <div className="relative"> <Linkedin className="absolute left-3 top-3 h-4 w-4 text-gray-400" /> <Input id="linkedin" name="socialProfiles.linkedin" placeholder="profile-name" className="pl-10" value={formData.socialProfiles?.linkedin || ""} onChange={(e) => updateNestedFormData("socialProfiles", "linkedin", e.target.value)} /> </div> </div>
             </div>
           </div>
         )
 
-      case 10:
+      case 10: // Profile Customization (Bio and Images)
         return (
           <div className="space-y-6">
-            <div className="text-center space-y-2">
-              <Camera className="h-12 w-12 text-blue-600 mx-auto" />
-              <h2 className="text-2xl font-bold">Profile Customization</h2>
-              <p className="text-muted-foreground">Tell us about yourself and customize your profile.</p>
-            </div>
-
+            <div className="text-center space-y-2"> <Camera className="h-12 w-12 text-blue-600 mx-auto" /> <h2 className="text-2xl font-bold">Profile Customization</h2> <p className="text-muted-foreground">Tell us about yourself and customize your profile.</p> </div>
             <div className="grid lg:grid-cols-2 gap-6">
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="bio">Bio</Label>
-                  <Textarea
-                    id="bio"
-                    placeholder="Tell us about yourself, your interests, and what you hope to achieve..."
-                    value={formData.bio || ""}
-                    onChange={(e) => updateFormData("bio", e.target.value)}
-                    className="min-h-[100px]"
-                  />
-                  <div className="text-right text-sm text-muted-foreground">{(formData.bio || "").length}/500</div>
-                </div>
-
+                <div className="space-y-2"> <Label htmlFor="bio">Bio</Label> <Textarea id="bio" name="bio" placeholder="Tell us about yourself, your interests, and what you hope to achieve..." value={formData.bio || ""} onChange={(e) => updateFormData("bio", e.target.value)} className="min-h-[100px]" /> <div className="text-right text-sm text-muted-foreground">{(formData.bio || "").length}/500</div> </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Profile Picture</Label>
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
-                      {croppedProfileImage ? (
-                        <div className="space-y-2">
-                          <img
-                            src={croppedProfileImage || "/placeholder.svg"}
-                            alt="Profile preview"
-                            className="w-16 h-16 rounded-full mx-auto object-cover"
-                          />
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => document.getElementById("profile-upload")?.click()}
-                          >
-                            Change Photo
-                          </Button>
-                        </div>
-                      ) : (
-                        <>
-                          <Camera className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                          <p className="text-sm text-muted-foreground">Upload profile picture</p>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => document.getElementById("profile-upload")?.click()}
-                          >
-                            Choose File
-                          </Button>
-                        </>
-                      )}
-                      <input
-                        id="profile-upload"
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => handleImageUpload(e, "profile")}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Profile Banner</Label>
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
-                      {croppedBannerImage ? (
-                        <div className="space-y-2">
-                          <img
-                            src={croppedBannerImage || "/placeholder.svg"}
-                            alt="Banner preview"
-                            className="w-full h-8 rounded mx-auto object-cover"
-                          />
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => document.getElementById("banner-upload")?.click()}
-                          >
-                            Change Banner
-                          </Button>
-                        </div>
-                      ) : (
-                        <>
-                          <Camera className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                          <p className="text-sm text-muted-foreground">Upload banner image</p>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => document.getElementById("banner-upload")?.click()}
-                          >
-                            Choose File
-                          </Button>
-                        </>
-                      )}
-                      <input
-                        id="banner-upload"
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => handleImageUpload(e, "banner")}
-                      />
-                    </div>
-                  </div>
+                  <div className="space-y-2"> <Label>Profile Picture</Label> <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center"> {croppedProfileImage ? (<div className="space-y-2"> <img src={croppedProfileImage} alt="Profile preview" className="w-16 h-16 rounded-full mx-auto object-cover" /> <Button type="button" variant="outline" size="sm" onClick={() => document.getElementById("profile-upload")?.click()}>Change Photo</Button> </div>) : (<> <Camera className="h-8 w-8 text-gray-400 mx-auto mb-2" /> <p className="text-sm text-muted-foreground">Upload profile picture</p> <Button type="button" variant="outline" size="sm" onClick={() => document.getElementById("profile-upload")?.click()}>Choose File</Button </>)} <input id="profile-upload" type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, "profile")} /> </div> </div>
+                  <div className="space-y-2"> <Label>Profile Banner</Label> <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center"> {croppedBannerImage ? (<div className="space-y-2"> <img src={croppedBannerImage} alt="Banner preview" className="w-full h-8 rounded mx-auto object-cover" /> <Button type="button" variant="outline" size="sm" onClick={() => document.getElementById("banner-upload")?.click()}>Change Banner</Button> </div>) : (<> <Camera className="h-8 w-8 text-gray-400 mx-auto mb-2" /> <p className="text-sm text-muted-foreground">Upload banner image</p> <Button type="button" variant="outline" size="sm" onClick={() => document.getElementById("banner-upload")?.click()}>Choose File</Button </>)} <input id="banner-upload" type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, "banner")} /> </div> </div>
                 </div>
               </div>
-
-              <div className="space-y-2">
-                <Label>Live Preview</Label>
-                <ProfilePreviewCard
-                  displayName={formData.displayName || ""}
-                  bio={formData.bio || ""}
-                  profileImage={croppedProfileImage}
-                  bannerImage={croppedBannerImage}
-                  hobbies={formData.hobbies}
-                />
-              </div>
+              <div className="space-y-2"> <Label>Live Preview</Label> <ProfilePreviewCard displayName={formData.displayName || ""} bio={formData.bio || ""} profileImage={croppedProfileImage} bannerImage={croppedBannerImage} hobbies={formData.hobbies as string[] | undefined} /> </div>
             </div>
-
-            <ImageCropperModal
-              isOpen={cropperModal.isOpen}
-              onClose={() => setCropperModal((prev) => ({ ...prev, isOpen: false }))}
-              imageSrc={cropperModal.imageSrc}
-              aspectRatio={cropperModal.aspectRatio}
-              onCropComplete={handleCropComplete}
-              title={cropperModal.type === "profile" ? "Crop Profile Picture" : "Crop Banner Image"}
-            />
+            <ImageCropperModal isOpen={cropperModal.isOpen} onClose={() => setCropperModal((prev) => ({ ...prev, isOpen: false }))} imageSrc={cropperModal.imageSrc} aspectRatio={cropperModal.aspectRatio} onCropComplete={handleCropComplete} title={cropperModal.type === "profile" ? "Crop Profile Picture" : "Crop Banner Image"} />
           </div>
         )
 
-      case 11:
+      case 11: // Agreements
         return (
           <div className="space-y-4">
-            <div className="text-center space-y-2">
-              <CheckCircle className="h-12 w-12 text-blue-600 mx-auto" />
-              <h2 className="text-2xl font-bold">Almost Done!</h2>
-              <p className="text-muted-foreground">Please review and accept our terms to complete your setup.</p>
-            </div>
+            <div className="text-center space-y-2"> <CheckCircle className="h-12 w-12 text-blue-600 mx-auto" /> <h2 className="text-2xl font-bold">Almost Done!</h2> <p className="text-muted-foreground">Please review and accept our terms to complete your setup.</p> </div>
             <div className="space-y-4">
-              <div className="flex items-start space-x-2">
-                <Checkbox
-                  id="terms"
-                  checked={formData.agreements?.termsAndPrivacy}
-                  onCheckedChange={(checked) => updateNestedFormData("agreements", "termsAndPrivacy", checked)}
-                />
-                <Label htmlFor="terms" className="text-sm leading-relaxed">
-                  I agree to the{" "}
-                  <Link href="/terms" className="text-blue-600 hover:underline">
-                    Terms of Service
-                  </Link>{" "}
-                  and{" "}
-                  <Link href="/privacy" className="text-blue-600 hover:underline">
-                    Privacy Policy
-                  </Link>
-                  . (Required)
-                </Label>
-              </div>
-              <div className="flex items-start space-x-2">
-                <Checkbox
-                  id="personalized"
-                  checked={formData.agreements?.personalizedContent}
-                  onCheckedChange={(checked) => updateNestedFormData("agreements", "personalizedContent", checked)}
-                />
-                <Label htmlFor="personalized" className="text-sm">
-                  I consent to personalized content and recommendations based on my learning activity.
-                </Label>
-              </div>
-              <div className="flex items-start space-x-2">
-                <Checkbox
-                  id="newsletter"
-                  checked={formData.agreements?.newsletter}
-                  onCheckedChange={(checked) => updateNestedFormData("agreements", "newsletter", checked)}
-                />
-                <Label htmlFor="newsletter" className="text-sm">
-                  Subscribe to the Lyceum newsletter for updates and learning tips. (Optional)
-                </Label>
-              </div>
+              <div className="flex items-start space-x-2"> <Checkbox id="terms" name="agreements.termsAndPrivacy" checked={formData.agreements?.termsAndPrivacy} onCheckedChange={(checked) => updateNestedFormData("agreements", "termsAndPrivacy", !!checked)} /> <Label htmlFor="terms" className="text-sm leading-relaxed"> I agree to the <Link href="/terms" className="text-blue-600 hover:underline">Terms of Service</Link> and <Link href="/privacy" className="text-blue-600 hover:underline">Privacy Policy</Link>. (Required) </Label> </div>
+              <div className="flex items-start space-x-2"> <Checkbox id="personalized" name="agreements.personalizedContent" checked={formData.agreements?.personalizedContent} onCheckedChange={(checked) => updateNestedFormData("agreements", "personalizedContent", !!checked)} /> <Label htmlFor="personalized" className="text-sm"> I consent to personalized content and recommendations based on my learning activity. </Label> </div>
+              <div className="flex items-start space-x-2"> <Checkbox id="newsletter" name="agreements.newsletter" checked={formData.agreements?.newsletter} onCheckedChange={(checked) => updateNestedFormData("agreements", "newsletter", !!checked)} /> <Label htmlFor="newsletter" className="text-sm"> Subscribe to the Lyceum newsletter for updates and learning tips. (Optional) </Label> </div>
             </div>
           </div>
         )
-
       default:
         return null
     }
@@ -674,7 +548,8 @@ export default function OnboardingPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl">
+      {/* The main form wrapper */}
+      <form onSubmit={handleSubmit} className="w-full max-w-2xl">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
             <BookOpen className="h-8 w-8 text-blue-600 mr-2" />
@@ -693,24 +568,27 @@ export default function OnboardingPage() {
         </Card>
 
         <div className="flex justify-between mt-6">
-          <Button variant="outline" onClick={handleBack} disabled={currentStep === 1} className="flex items-center">
+          <Button type="button" variant="outline" onClick={handleBack} disabled={currentStep === 1} className="flex items-center">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
 
           {currentStep === TOTAL_STEPS ? (
-            <Button onClick={handleComplete} disabled={!canProceed() || isLoading} className="flex items-center">
-              {isLoading ? "Setting up..." : "Complete Setup & Enter Lyceum"}
-              <CheckCircle className="h-4 w-4 ml-2" />
-            </Button>
+            <SubmitButton disabled={!canProceed()} />
           ) : (
-            <Button onClick={handleNext} disabled={!canProceed()} className="flex items-center">
+            <Button type="button" onClick={handleNext} disabled={!canProceed()} className="flex items-center">
               Next
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           )}
         </div>
-      </div>
+         {/* Display Server Action Messages */}
+        {state?.message && !state.redirectUrl && (
+          <p className={`mt-4 text-sm ${state.errors ? 'text-red-500' : 'text-green-500'}`}>
+            {state.message}
+          </p>
+        )}
+      </form>
     </div>
   )
 }

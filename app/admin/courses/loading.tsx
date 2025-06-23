@@ -2,12 +2,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
-export default function AdminUsersLoading() {
+export default function AdminCoursesLoading() {
   return (
     <div className="p-6 bg-background min-h-screen">
       <div className="mb-8">
-        <Skeleton className="h-9 w-64 mb-2" />
-        <Skeleton className="h-5 w-80" />
+        <Skeleton className="h-9 w-72 mb-2" /> {/* Title: Course Management */}
+        <Skeleton className="h-5 w-80" /> {/* Subtitle */}
       </div>
 
       <Card>
@@ -15,8 +15,8 @@ export default function AdminUsersLoading() {
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
             <Skeleton className="h-10 w-full sm:w-72" /> {/* Search Input Skeleton */}
             <div className="flex gap-2">
-              <Skeleton className="h-10 w-32" /> {/* Filter Dropdown Skeleton */}
-              <Skeleton className="h-10 w-32" /> {/* Another Filter Dropdown Skeleton */}
+              <Skeleton className="h-10 w-32" /> {/* Filter Dropdown Skeleton (e.g., Subject) */}
+              <Skeleton className="h-10 w-32" /> {/* Filter Dropdown Skeleton (e.g., Status) */}
             </div>
           </div>
         </CardHeader>
@@ -24,24 +24,24 @@ export default function AdminUsersLoading() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead><Skeleton className="h-5 w-10" /></TableHead>
-                <TableHead><Skeleton className="h-5 w-32" /></TableHead>
-                <TableHead><Skeleton className="h-5 w-40" /></TableHead>
-                <TableHead><Skeleton className="h-5 w-24" /></TableHead>
-                <TableHead><Skeleton className="h-5 w-20" /></TableHead>
-                <TableHead><Skeleton className="h-5 w-28" /></TableHead>
-                <TableHead><Skeleton className="h-5 w-24" /></TableHead>
+                <TableHead><Skeleton className="h-5 w-24" /></TableHead> {/* Course Title */}
+                <TableHead><Skeleton className="h-5 w-20" /></TableHead> {/* Instructor */}
+                <TableHead><Skeleton className="h-5 w-20" /></TableHead> {/* Subject */}
+                <TableHead><Skeleton className="h-5 w-16" /></TableHead> {/* Price */}
+                <TableHead><Skeleton className="h-5 w-16" /></TableHead> {/* Status */}
+                <TableHead><Skeleton className="h-5 w-24" /></TableHead> {/* Created At */}
+                <TableHead><Skeleton className="h-5 w-20" /></TableHead> {/* Actions */}
               </TableRow>
             </TableHeader>
             <TableBody>
               {[...Array(10)].map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell><Skeleton className="h-5 w-10" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-32" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-40" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-28" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-full" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-full" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-full" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-full" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-full" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-full" /></TableCell>
                   <TableCell className="space-x-2">
                     <Skeleton className="h-8 w-8 inline-block" />
                     <Skeleton className="h-8 w-8 inline-block" />
