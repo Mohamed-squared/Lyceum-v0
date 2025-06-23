@@ -5,6 +5,11 @@ import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
 
 export async function signInWithEmail(formData: FormData) {
+  // Add validation to ensure formData exists
+  if (!formData || typeof formData.get !== "function") {
+    return { error: "Invalid form data received" }
+  }
+
   const supabase = createClient()
 
   if (!supabase) {
@@ -13,6 +18,11 @@ export async function signInWithEmail(formData: FormData) {
 
   const email = formData.get("email") as string
   const password = formData.get("password") as string
+
+  // Add validation for required fields
+  if (!email || !password) {
+    return { error: "Email and password are required" }
+  }
 
   const { error } = await supabase.auth.signInWithPassword({
     email,
@@ -28,30 +38,30 @@ export async function signInWithEmail(formData: FormData) {
 }
 
 export async function signUpWithEmail(formData: FormData) {
+  // Add validation to ensure formData exists
+  if (!formData || typeof formData.get !== "function") {
+    return { error: "Invalid form data received" }
+  }
+
   const supabase = createClient()
 
   if (!supabase) {
-    // In server actions, it's common to throw an error or redirect
-    // For simplicity here, returning an error object that page.tsx might handle
-    // However, the goal is to use these actions directly in form actions,
-    // and form actions handle pending/error states often via useFormState.
-    // For now, let's make it return an error that the original page.tsx was designed for.
-    // throw new Error("Authentication service not configured");
-    return { error: "Authentication service not configured" };
+    return { error: "Authentication service not configured" }
   }
 
   const email = formData.get("email") as string
   const password = formData.get("password") as string
-  const name = formData.get("name") as string // Extract name
+  const name = formData.get("name") as string
 
+  // Add validation for required fields
   if (!name) {
-    return { error: "Full name is required." };
+    return { error: "Full name is required." }
   }
   if (!email) {
-    return { error: "Email is required." };
+    return { error: "Email is required." }
   }
   if (!password) {
-    return { error: "Password is required." };
+    return { error: "Password is required." }
   }
 
   const { data, error } = await supabase.auth.signUp({
