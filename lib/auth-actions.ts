@@ -2,69 +2,88 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
-import { headers } from "next/headers"
+import { revalidatePath } from "next/cache"
 
-export async function signInWithEmail(email: string, password: string) {
+export async function signInWithEmail(formData: FormData) {
   const supabase = createClient()
 
   if (!supabase) {
-    throw new Error("Supabase not configured")
+    return { error: "Authentication service not configured" }
   }
 
-  const { data, error } = await supabase.auth.signInWithPassword({
+  const email = formData.get("email") as string
+  const password = formData.get("password") as string
+
+  const { error } = await supabase.auth.signInWithPassword({
     email,
     password,
   })
 
   if (error) {
-    throw new Error(error.message)
+    return { error: error.message }
   }
 
+  revalidatePath("/", "layout")
   redirect("/dashboard")
 }
 
-export async function signUpWithEmail(email: string, password: string, fullName: string) {
+export async function signUpWithEmail(formData: FormData) {
   const supabase = createClient()
 
   if (!supabase) {
-    throw new Error("Supabase not configured")
+    return { error: "Authentication service not configured" }
   }
+
+  const email = formData.get("email") as string
+  const password = formData.get("password") as string
 
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      data: {
-        full_name: fullName,
-      },
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
     },
   })
 
   if (error) {
-    throw new Error(error.message)
+    return { error: error.message }
   }
 
-  redirect("/onboarding")
+  // If user is created, create profile
+  if (data.user) {
+    const { error: profileError } = await supabase.from("profiles").insert([
+      {
+        id: data.user.id,
+        email: data.user.email,
+        username: data.user.email?.split("@")[0] || "",
+        role: "student",
+      },
+    ])
+
+    if (profileError) {
+      console.error("Error creating profile:", profileError)
+    }
+  }
+
+  return { success: "Check your email to confirm your account" }
 }
 
 export async function signInWithGoogle() {
   const supabase = createClient()
 
   if (!supabase) {
-    throw new Error("Supabase not configured")
+    return { error: "Authentication service not configured" }
   }
-
-  const origin = headers().get("origin")
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: `${origin}/auth/callback`,
+      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
     },
   })
 
   if (error) {
-    throw new Error(error.message)
+    return { error: error.message }
   }
 
   if (data.url) {
@@ -76,14 +95,11 @@ export async function signOut() {
   const supabase = createClient()
 
   if (!supabase) {
-    throw new Error("Supabase not configured")
+    redirect("/auth")
+    return
   }
 
-  const { error } = await supabase.auth.signOut()
-
-  if (error) {
-    throw new Error(error.message)
-  }
-
+  await supabase.auth.signOut()
+  revalidatePath("/", "layout")
   redirect("/auth")
 }
