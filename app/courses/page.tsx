@@ -10,6 +10,7 @@ import Link from "next/link"
 import { getAllCourses } from "@/lib/api"
 import { CourseCard } from "@/components/CourseCard" // Assuming CourseCard is adapted for live data
 import { Skeleton } from "@/components/ui/skeleton"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 // TODO: Replace mock data for filters with API-driven data or a more robust solution.
 import { subjects, languages, languageLabels, type Course } from "@/lib/mock-data"
 
