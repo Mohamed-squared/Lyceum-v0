@@ -358,7 +358,9 @@ export default function OnboardingPage() {
     // However, for consistency and accessibility, adding `name` attributes is good practice.
     // For brevity, I'll skip adding all `name` attributes in this diff, assuming manual FormData construction.
     switch (currentStep) {
-      case 1:
+      case 1: // This was case 10 in the original file structure before my erroneous patch.
+              // The actual case 10 (Profile Customization) is further down.
+              // I need to find the correct case 10.
         return (
           <div className="space-y-4">
             <div className="text-center space-y-2">
