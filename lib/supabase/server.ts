@@ -58,6 +58,5 @@ export function createAdminClient() {
   })
 }
 
-// Export instances
-export const supabase = createClient()
+// Export the admin client as a named export (but don't instantiate it at module level)
 export const supabaseAdmin = createAdminClient()
