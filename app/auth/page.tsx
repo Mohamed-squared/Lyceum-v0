@@ -1,7 +1,10 @@
 "use client"
 
+import type React from "react"
+
 import { useEffect, useState } from "react" // useState for Google error
-import { useFormState, useFormStatus } from "react-dom"
+import { useActionState } from "react"
+import { useFormStatus } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -78,27 +81,25 @@ function GoogleSignInButton() {
   )
 }
 
-
 export default function AuthPage() {
   // For Sign In form
-  const [signInState, signInAction] = useFormState(signInWithEmail, undefined)
+  const [signInState, signInAction] = useActionState(signInWithEmail, undefined)
 
   // For Sign Up form
-  const [signUpState, signUpAction] = useFormState(signUpWithEmail, undefined)
+  const [signUpState, signUpAction] = useActionState(signUpWithEmail, undefined)
 
   // General error display (could be from either form or Google sign-in)
-  const [currentError, setCurrentError] = useState<string | null>(null);
+  const [currentError, setCurrentError] = useState<string | null>(null)
 
   useEffect(() => {
     if (signInState?.error) {
-      setCurrentError(signInState.error);
+      setCurrentError(signInState.error)
     } else if (signUpState?.error) {
-      setCurrentError(signUpState.error);
+      setCurrentError(signUpState.error)
     } else {
-      setCurrentError(null);
+      setCurrentError(null)
     }
-  }, [signInState, signUpState]);
-
+  }, [signInState, signUpState])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
