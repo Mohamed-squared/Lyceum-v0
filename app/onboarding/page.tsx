@@ -515,7 +515,7 @@ export default function OnboardingPage() {
         )
 
       case 10: // Profile Customization (Bio and Images)
-        return (
+        return ( // Added opening parenthesis here
           <div className="space-y-6">
             <div className="text-center space-y-2"> <Camera className="h-12 w-12 text-blue-600 mx-auto" /> <h2 className="text-2xl font-bold">Profile Customization</h2> <p className="text-muted-foreground">Tell us about yourself and customize your profile.</p> </div>
             <div className="grid lg:grid-cols-2 gap-6">
