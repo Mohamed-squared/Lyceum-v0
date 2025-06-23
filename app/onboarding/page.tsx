@@ -530,7 +530,7 @@ export default function OnboardingPage() {
             </div>
             <ImageCropperModal isOpen={cropperModal.isOpen} onClose={() => setCropperModal((prev) => ({ ...prev, isOpen: false }))} imageSrc={cropperModal.imageSrc} aspectRatio={cropperModal.aspectRatio} onCropComplete={handleCropComplete} title={cropperModal.type === "profile" ? "Crop Profile Picture" : "Crop Banner Image"} />
           </div>
-        )
+        ); // Added closing parenthesis and semicolon
 
       case 11: // Agreements
         return (
