@@ -1,12 +1,14 @@
 "use client"
 
 import { useState } from "react"
+import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Logo } from "@/components/ui/logo"
 import { LatexRenderer } from "./LatexRenderer"
-import { Bot, Send, Sparkles } from "lucide-react"
+import { Send, Sparkles } from "lucide-react"
 
 interface FloatingAIHelperProps {
   context?: string
@@ -14,10 +16,19 @@ interface FloatingAIHelperProps {
 }
 
 export function FloatingAIHelper({ context, contextType = "text" }: FloatingAIHelperProps) {
+  const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
   const [input, setInput] = useState("")
   const [messages, setMessages] = useState<Array<{ role: "user" | "assistant"; content: string }>>([])
   const [isLoading, setIsLoading] = useState(false)
+
+  // Don't show on auth, onboarding, or landing pages
+  const hiddenPages = ["/", "/auth", "/onboarding", "/auth/forgot-password", "/auth/reset-password"]
+  const shouldHide = hiddenPages.some((page) => pathname === page || pathname?.startsWith(page))
+
+  if (shouldHide) {
+    return null
+  }
 
   const sendMessage = async () => {
     if (!input.trim()) return
@@ -55,11 +66,11 @@ export function FloatingAIHelper({ context, contextType = "text" }: FloatingAIHe
       {/* Floating Action Button */}
       <Button
         onClick={handleOpen}
-        className="fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 z-50"
+        className="fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 z-50 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
         size="icon"
       >
         <div className="relative">
-          <Bot className="w-6 h-6" />
+          <Logo variant="icon-only" size="sm" className="w-6 h-6 brightness-0 invert" />
           <Sparkles className="w-3 h-3 absolute -top-1 -right-1 text-yellow-400 animate-pulse" />
         </div>
       </Button>
@@ -69,8 +80,10 @@ export function FloatingAIHelper({ context, contextType = "text" }: FloatingAIHe
         <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Bot className="w-5 h-5" />
-              AI Assistant - Contextual Help
+              <div className="w-6 h-6 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center">
+                <Logo variant="icon-only" size="sm" className="w-4 h-4 brightness-0 invert" />
+              </div>
+              Lyceum AI Assistant - Contextual Help
             </DialogTitle>
           </DialogHeader>
 
@@ -80,8 +93,8 @@ export function FloatingAIHelper({ context, contextType = "text" }: FloatingAIHe
               <div key={index} className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}>
                 {message.role === "assistant" && (
                   <Avatar className="w-8 h-8">
-                    <AvatarFallback>
-                      <Bot className="w-4 h-4" />
+                    <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600">
+                      <Logo variant="icon-only" size="sm" className="w-4 h-4 brightness-0 invert" />
                     </AvatarFallback>
                   </Avatar>
                 )}
@@ -97,8 +110,8 @@ export function FloatingAIHelper({ context, contextType = "text" }: FloatingAIHe
             {isLoading && (
               <div className="flex gap-3 justify-start">
                 <Avatar className="w-8 h-8">
-                  <AvatarFallback>
-                    <Bot className="w-4 h-4" />
+                  <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600">
+                    <Logo variant="icon-only" size="sm" className="w-4 h-4 brightness-0 invert" />
                   </AvatarFallback>
                 </Avatar>
                 <div className="bg-muted rounded-lg p-3">
