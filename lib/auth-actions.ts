@@ -101,6 +101,19 @@ export async function signUpWithEmail(prevState: any, formData: FormData) {
     return { error: `User signed up but profile creation failed: ${profileError.message}. Please contact support.` }
   }
 
+  // Automatically sign in the user
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  })
+
+  if (signInError) {
+    // It's important to handle this case, though it's unlikely if signUp just succeeded.
+    // For example, the user might have been deactivated between signUp and this call.
+    console.error("Error signing in after sign up:", signInError)
+    return { error: `Account created, but failed to sign in automatically: ${signInError.message}. Please try signing in manually.`, success: null }
+  }
+
   // Instead of returning a success message, redirect to onboarding
   revalidatePath("/", "layout") // Revalidate relevant paths
   redirect("/onboarding")
