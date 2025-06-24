@@ -26,28 +26,31 @@ export async function GET(req: Request) {
     if (createdCoursesErr) return NextResponse.json({ error: createdCoursesErr.message, type: 'createdCourses' }, { status: 500 });
     const createdCourses = createdCoursesData || [];
 
-    // Fetch user profile (already includes role, credits, display_name, avatar_url)
-    const { data: profile, error: profileErr } = await supabaseAdmin
+    // Fetch user profile
+    const { data: profileData, error: profileErr } = await supabaseAdmin
       .from('profiles')
-      .select('credits, badges, display_name, avatar_url, role')
+      .select('display_name, role, credits, avatar_url, badges') // Ensure all needed fields are here
       .eq('id', userId)
       .single();
 
-    if (profileErr) return NextResponse.json({ error: profileErr.message, type: 'profile' }, { status: 500 });
+    if (profileErr) {
+      console.error("Error fetching profile:", profileErr.message);
+      return NextResponse.json({ error: profileErr.message, type: 'profile' }, { status: 500 });
+    }
 
-    const user = profile ? {
-      ...profile, // spread existing profile data (includes credits, badges, avatar_url, role)
-      name: profile.display_name // map display_name to name
+    const user = profileData ? {
+      name: profileData.display_name,
+      role: profileData.role,
+      credits: profileData.credits,
+      avatar_url: profileData.avatar_url,
+      badges: profileData.badges || [] // Ensure badges is an array
     } : null;
 
-    // Placeholder data for challenges and activities
-    // For activities, we might use the partners data if it's relevant, or fetch separately
-    const { data: partnersData, error: partnersErr } = await supabaseAdmin.rpc('get_study_partners', { user_id_input: userId });
-    if (partnersErr) console.error("Error fetching partners, returning empty for activities/partners:", partnersErr.message); // Log error but don't fail request
-
-    const activities = partnersData || []; // Using partners data for activities for now, or could be separate fetch
-    const partners = partnersData || [];   // Also populate partners from the same RPC call
-    const challenges = []; // Placeholder
+    // Define placeholders for data that might not be ready or might fail
+    const activities = [];
+    const challenges = [];
+    const partners = []; // Removing the RPC call for now
+    const stats = {};    // Default empty object for stats
 
     return NextResponse.json({
       enrolledCourses: enrolledCourses,
@@ -56,7 +59,7 @@ export async function GET(req: Request) {
       activities: activities,
       partners: partners,
       user: user,
-      // stats: {} // If stats are needed as a separate object by frontend
+      stats: stats
     });
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 500 });
