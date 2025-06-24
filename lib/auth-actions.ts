@@ -86,9 +86,8 @@ export async function signUpWithEmail(prevState: any, formData: FormData) {
   const { error: profileError } = await supabase.from("profiles").insert([
     {
       id: data.user.id,
-      email: data.user.email,
-      // Use the extracted name for the username field, or a dedicated 'full_name' field
-      username: name,
+      display_name: name,
+      username: name, // Using name as the default username
       role: "student", // Default role
     },
   ])
