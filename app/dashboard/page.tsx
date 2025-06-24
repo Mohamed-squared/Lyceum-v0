@@ -1,236 +1,209 @@
 "use client"
 
-import useSWR from 'swr'
-import { Badge } from "@/components/ui/badge"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Trophy, TrendingUp, AlertTriangle } from "lucide-react"
-import Link from "next/link"
-import { getDashboardData, type DashboardData } from "@/lib/api" // Assuming DashboardData type is exported from api.ts or a types file
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { BookOpen, Trophy, Users, TrendingUp, Plus } from "lucide-react"
 import { MyCoursesWidget } from "@/components/dashboard/MyCoursesWidget"
 import { MyCreationsWidget } from "@/components/dashboard/MyCreationsWidget"
-import { StudyPartnerFeed } from "@/components/dashboard/StudyPartnerFeed"
 import { ActiveChallengesWidget } from "@/components/dashboard/ActiveChallengesWidget"
-import { Skeleton } from "@/components/ui/skeleton"
+import { StudyPartnerFeed } from "@/components/dashboard/StudyPartnerFeed"
 
-// Define a specific type for dashboard data if not already available globally
-// For now, using DashboardData from lib/api, assuming it's defined there or imported.
-
-function DashboardSkeleton() {
-  return (
-    <div className="min-h-screen bg-background">
-      {/* Header Skeleton */}
-      <div className="bg-card border-b border-border">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <Skeleton className="h-9 w-72 mb-2" /> {/* Welcome message */}
-              <Skeleton className="h-5 w-96" /> {/* Subtitle */}
-            </div>
-            <div className="flex items-center space-x-4">
-              <Skeleton className="h-8 w-24" /> {/* Credits Badge */}
-              <Skeleton className="h-8 w-20" /> {/* Role Badge */}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid lg:grid-cols-3 gap-8">
-          {/* Main Content Skeleton */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* MyCoursesWidget Skeleton */}
-            <div>
-              <Skeleton className="h-8 w-48 mb-4" /> {/* Widget Title */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Skeleton className="h-36 w-full" />
-                <Skeleton className="h-36 w-full" />
-              </div>
-            </div>
-            {/* MyCreationsWidget Skeleton */}
-            <div>
-              <Skeleton className="h-8 w-48 mb-4" /> {/* Widget Title */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Skeleton className="h-36 w-full" />
-              </div>
-            </div>
-            {/* ActiveChallengesWidget Skeleton */}
-            <div>
-              <Skeleton className="h-8 w-52 mb-4" /> {/* Widget Title */}
-              <Skeleton className="h-24 w-full" />
-            </div>
-          </div>
-
-          {/* Sidebar Skeleton */}
-          <div className="space-y-6">
-            {/* StudyPartnerFeed Skeleton */}
-            <div>
-              <Skeleton className="h-8 w-40 mb-4" /> {/* Widget Title */}
-              <Skeleton className="h-48 w-full" />
-            </div>
-            {/* Quick Stats Skeleton */}
-            <Card>
-              <CardHeader>
-                <Skeleton className="h-7 w-32" /> {/* Card Title */}
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Skeleton className="h-5 w-full" />
-                <Skeleton className="h-5 w-full" />
-                <Skeleton className="h-5 w-full" />
-                <Skeleton className="h-5 w-full" />
-              </CardContent>
-            </Card>
-            {/* Quick Actions Skeleton */}
-            <Card>
-              <CardHeader>
-                <Skeleton className="h-7 w-36" /> {/* Card Title */}
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Skeleton className="h-9 w-full" />
-                <Skeleton className="h-9 w-full" />
-                <Skeleton className="h-9 w-full" />
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
+interface DashboardData {
+  enrolledCourses: any[]
+  createdCourses: any[]
+  challenges: any[]
+  activities: any[]
+  partners: any[]
+  user: {
+    name: string
+    role: string
+    credits: number
+    avatar_url?: string
+    badges: string[]
+  }
+  stats: {
+    coursesCompleted?: number
+    studyStreak?: number
+    challengesWon?: number
+  }
 }
 
 export default function DashboardPage() {
-  // SWR key can be a string, typically the API endpoint.
-  // The fetcher function (getDashboardData) will be called with this key.
-  const { data, error, isLoading } = useSWR<DashboardData>('/api/dashboard', getDashboardData)
+  const [data, setData] = useState<DashboardData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  if (isLoading) {
-    return <DashboardSkeleton />
-  }
+  useEffect(() => {
+    async function fetchDashboardData() {
+      try {
+        setLoading(true)
+        setError(null)
 
-  if (error) {
+        const response = await fetch("/api/dashboard", {
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        })
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        }
+
+        const dashboardData = await response.json()
+        setData(dashboardData)
+      } catch (err) {
+        console.error("Failed to fetch dashboard data:", err)
+        setError(err instanceof Error ? err.message : "Failed to load dashboard")
+
+        // Set fallback data so the dashboard still works
+        setData({
+          enrolledCourses: [],
+          createdCourses: [],
+          challenges: [],
+          activities: [],
+          partners: [],
+          user: {
+            name: "Demo User",
+            role: "student",
+            credits: 1000,
+            avatar_url: "/placeholder-user.jpg",
+            badges: [],
+          },
+          stats: {
+            coursesCompleted: 0,
+            studyStreak: 0,
+            challengesWon: 0,
+          },
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchDashboardData()
+  }, [])
+
+  if (loading) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center text-center px-4">
-        <AlertTriangle className="h-16 w-16 text-destructive mb-4" />
-        <h2 className="text-2xl font-bold text-foreground mb-2">Failed to Load Dashboard</h2>
-        <p className="text-muted-foreground mb-6">
-          We couldn't fetch your dashboard data. It might be a temporary issue.
-        </p>
-        <p className="text-sm text-muted-foreground mb-4">Error: {error.message}</p>
-        <Button onClick={() => window.location.reload()}>Try Again</Button>
+      <div className="container mx-auto p-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-32 bg-gray-200 rounded"></div>
+            ))}
+          </div>
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="h-64 bg-gray-200 rounded"></div>
+            <div className="h-64 bg-gray-200 rounded"></div>
+          </div>
+        </div>
       </div>
     )
   }
 
   if (!data) {
-    // This case might occur if SWR hasn't fetched yet but isn't loading, or if API returned null/undefined
-    // For robust UI, consider what to show. A skeleton or a specific "No data available" message.
-    // Given SWR's behavior, `isLoading` should cover the initial fetch.
-    // If `data` is null post-loading and post-error check, it implies an unexpected API response.
     return (
-        <div className="min-h-screen bg-background flex flex-col items-center justify-center text-center px-4">
-            <TrendingUp className="h-16 w-16 text-muted-foreground mb-4" /> {/* Or a more relevant icon */}
-            <h2 className="text-2xl font-bold text-foreground mb-2">No Dashboard Data</h2>
-            <p className="text-muted-foreground mb-6">
-                There's currently no data to display on your dashboard.
-            </p>
-            <Button asChild>
-                <Link href="/courses">Explore Courses</Link>
-            </Button>
-        </div>
-    );
-  }
-
-  // TODO: Add specific empty state checks for child components if necessary
-  // e.g., if data.enrolledCourses is empty, MyCoursesWidget should render an empty state.
-
-  return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="bg-card border-b border-border">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">Welcome back, {data.user.name}!</h1>
-              <p className="text-muted-foreground mt-1">Ready to continue your learning journey?</p>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Badge variant="secondary" className="px-3 py-1">
-                <Trophy className="h-4 w-4 mr-1" />
-                {data.user.credits.toLocaleString()} Credits
-              </Badge>
-              <Badge variant="outline" className="px-3 py-1 capitalize">
-                {data.user.role} User
-              </Badge>
-            </div>
-          </div>
+      <div className="container mx-auto p-6">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Dashboard Unavailable</h1>
+          <p className="text-muted-foreground mb-4">{error || "Unable to load dashboard data"}</p>
+          <Button onClick={() => window.location.reload()}>Try Again</Button>
         </div>
       </div>
+    )
+  }
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-8">
-            <MyCoursesWidget courses={data.enrolledCourses} />
-            <MyCreationsWidget courses={data.createdCourses} />
-            <ActiveChallengesWidget challenges={data.challenges} />
+  const { user, stats, enrolledCourses, createdCourses, challenges, activities, partners } = data
+
+  return (
+    <div className="container mx-auto p-6 space-y-6">
+      {error && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <p className="text-yellow-800 text-sm">
+            <strong>Note:</strong> Some features may be limited. {error}
+          </p>
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <Avatar className="h-12 w-12">
+            <AvatarImage src={user.avatar_url || "/placeholder.svg"} alt={user.name} />
+            <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+          </Avatar>
+          <div>
+            <h1 className="text-2xl font-bold">Welcome back, {user.name}!</h1>
+            <div className="flex items-center space-x-2">
+              <Badge variant="secondary">{user.role}</Badge>
+              <span className="text-sm text-muted-foreground">{user.credits} credits</span>
+            </div>
           </div>
+        </div>
+        <Button>
+          <Plus className="h-4 w-4 mr-2" />
+          Create Course
+        </Button>
+      </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            <StudyPartnerFeed activities={data.activities} />
+      {/* Stats Cards */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Courses Completed</CardTitle>
+            <BookOpen className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.coursesCompleted || 0}</div>
+          </CardContent>
+        </Card>
 
-            {/* Quick Stats */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <TrendingUp className="h-5 w-5 mr-2" />
-                  Your Stats
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {/* These stats seem to be hardcoded in the original example.
-                      If they are part of dashboardData, they should be mapped from data.user.stats or similar.
-                      For now, keeping them as they were, assuming they might be static or placeholders.
-                  */}
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Courses Completed</span>
-                    <span className="font-semibold text-foreground">{data.stats?.coursesCompleted || 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Study Streak</span>
-                    <span className="font-semibold text-foreground">{data.stats?.studyStreak || 0} days</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Challenges Won</span>
-                    <span className="font-semibold text-foreground">{data.stats?.challengesWon || 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Total Credits</span>
-                    <span className="font-semibold text-foreground">{data.user.credits.toLocaleString()}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Study Streak</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.studyStreak || 0} days</div>
+          </CardContent>
+        </Card>
 
-            {/* Quick Actions */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button asChild className="w-full" size="sm">
-                  <Link href="/ai-chat">Start AI Tutoring Session</Link>
-                </Button>
-                <Button asChild variant="outline" className="w-full" size="sm">
-                  <Link href="/testgen">Generate Practice Test</Link>
-                </Button>
-                <Button asChild variant="outline" className="w-full" size="sm">
-                  <Link href="/community/challenges">Challenge a Friend</Link>
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Challenges Won</CardTitle>
+            <Trophy className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.challengesWon || 0}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Study Partners</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{partners.length}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Main Content Grid */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <div className="space-y-6">
+          <MyCoursesWidget courses={enrolledCourses} />
+          <ActiveChallengesWidget challenges={challenges} />
+        </div>
+
+        <div className="space-y-6">
+          <MyCreationsWidget courses={createdCourses} />
+          <StudyPartnerFeed activities={activities} partners={partners} />
         </div>
       </div>
     </div>
