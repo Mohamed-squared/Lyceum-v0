@@ -68,53 +68,18 @@ export async function signUpWithEmail(prevState: any, formData: FormData) {
     email,
     password,
     options: {
-      // Add name to user_metadata if your Supabase setup supports it
-      // data: { full_name: name },
+      data: { full_name: name }, // Pass full name for the trigger
       emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
     },
   })
 
   if (error) {
-    return { error: error.message }
+    return { error: error.message, success: null }
   }
 
-  if (!data.user) {
-    return { error: "Sign up successful, but no user data returned. Please try signing in." }
-  }
+  // Profile creation and session are now handled by Supabase trigger and settings.
+  // No need to manually insert profile or sign in.
 
-  // If user is created, create profile
-  const { error: profileError } = await supabase.from("profiles").insert([
-    {
-      id: data.user.id,
-      display_name: name,
-      username: name, // Using name as the default username
-      role: "student", // Default role
-    },
-  ])
-
-  if (profileError) {
-    // If profile creation fails, we should ideally roll back user creation or handle this state.
-    // For now, return the profile error.
-    // Consider what to do if the user exists but profile creation failed.
-    // Supabase might also handle this with a trigger.
-    console.error("Error creating profile:", profileError)
-    return { error: `User signed up but profile creation failed: ${profileError.message}. Please contact support.` }
-  }
-
-  // Automatically sign in the user
-  const { error: signInError } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  })
-
-  if (signInError) {
-    // It's important to handle this case, though it's unlikely if signUp just succeeded.
-    // For example, the user might have been deactivated between signUp and this call.
-    console.error("Error signing in after sign up:", signInError)
-    return { error: `Account created, but failed to sign in automatically: ${signInError.message}. Please try signing in manually.`, success: null }
-  }
-
-  // Instead of returning a success message, redirect to onboarding
   revalidatePath("/", "layout") // Revalidate relevant paths
   redirect("/onboarding")
   // The return statement below will not be reached due to redirect,
