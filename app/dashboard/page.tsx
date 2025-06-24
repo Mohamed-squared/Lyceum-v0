@@ -209,12 +209,6 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
-
-      {/* Floating AI Helper */}
-      <FloatingAIHelper
-        context="Dashboard page with user statistics, enrolled courses, and study activities"
-        contextType="page"
-      />
     </>
   )
 }

@@ -116,22 +116,11 @@ export default function OnboardingPage() {
   const [currentStep, setCurrentStep] = useState(1)
   const router = useRouter()
 
-  // Mock onboarding action for now since we don't have the real one yet
-  const mockOnboardingAction = async (formData: FormData) => {
-    // Simulate processing
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+  // Import the real onboardingAction
+  const { onboardingAction } = await import("@/app/actions/onboarding")
+  const [state, formAction] = useFormState(onboardingAction, initialState as any) // Cast initialState if types mismatch slightly
 
-    // Mock success response
-    return {
-      message: "Onboarding completed successfully!",
-      errors: null,
-      redirectUrl: "/dashboard",
-    }
-  }
-
-  const [state, formAction] = useFormState(mockOnboardingAction, initialState)
-
-  const [formData, setFormData] = useState<Partial<ClientOnboardingData>>({
+  const [clientFormData, setClientFormData] = useState<Partial<ClientOnboardingData>>({
     displayName: "",
     role: "standard",
     languagePreferences: {
@@ -185,15 +174,19 @@ export default function OnboardingPage() {
     }
   }, [state, router])
 
-  const updateFormData = (field: keyof ClientOnboardingData, value: any) => {
-    setFormData((prev) => ({
+  // Store File objects directly
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [bannerFile, setBannerFile] = useState<File | null>(null)
+
+  const updateClientFormData = (field: keyof ClientOnboardingData, value: any) => {
+    setClientFormData((prev) => ({
       ...prev,
       [field]: value,
     }))
   }
 
-  const updateNestedFormData = (parent: keyof ClientOnboardingData, field: string, value: any) => {
-    setFormData((prev) => ({
+  const updateNestedClientFormData = (parent: keyof ClientOnboardingData, field: string, value: any) => {
+    setClientFormData((prev) => ({
       ...prev,
       [parent]: {
         ...(prev[parent] as object),
@@ -203,43 +196,43 @@ export default function OnboardingPage() {
   }
 
   const addTag = (field: "studiedSubjects" | "interestedMajors" | "hobbies", value: string) => {
-    if (value.trim() && !(formData[field] as string[])?.includes(value.trim())) {
-      updateFormData(field, [...((formData[field] as string[]) || []), value.trim()])
+    if (value.trim() && !(clientFormData[field] as string[])?.includes(value.trim())) {
+      updateClientFormData(field, [...((clientFormData[field] as string[]) || []), value.trim()])
     }
   }
 
   const removeTag = (field: "studiedSubjects" | "interestedMajors" | "hobbies", value: string) => {
-    updateFormData(field, (formData[field] as string[])?.filter((item) => item !== value) || [])
+    updateClientFormData(field, (clientFormData[field] as string[])?.filter((item) => item !== value) || [])
   }
 
   const canProceed = () => {
     switch (currentStep) {
       case 1:
-        return !!formData.displayName?.trim()
+        return !!clientFormData.displayName?.trim()
       case 2:
-        return !!formData.role
+        return !!clientFormData.role
       case 3:
         return !!(
-          formData.languagePreferences?.interface &&
-          formData.languagePreferences?.explanation &&
-          formData.languagePreferences?.courseMaterial
+          clientFormData.languagePreferences?.interface &&
+          clientFormData.languagePreferences?.explanation &&
+          clientFormData.languagePreferences?.courseMaterial
         )
       case 4:
-        return !!formData.major?.trim()
+        return !!clientFormData.major?.trim()
       case 5:
-        return !!formData.levelOfStudy
+        return !!clientFormData.levelOfStudy
       case 6:
-        return (formData.studiedSubjects?.length || 0) > 0
+        return (clientFormData.studiedSubjects?.length || 0) > 0
       case 7:
-        return (formData.interestedMajors?.length || 0) > 0
+        return (clientFormData.interestedMajors?.length || 0) > 0
       case 8:
-        return (formData.hobbies?.length || 0) > 0
+        return (clientFormData.hobbies?.length || 0) > 0
       case 9:
-        return true
+        return true // Social profiles are optional
       case 10:
-        return !!formData.bio?.trim()
+        return !!clientFormData.bio?.trim() // Profile Customization (Bio, Images)
       case 11:
-        return !!formData.agreements?.termsAndPrivacy
+        return !!clientFormData.agreements?.termsAndPrivacy
       default:
         return false
     }
@@ -257,44 +250,53 @@ export default function OnboardingPage() {
     }
   }
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (!canProceed()) return
+  // This internalSubmit will be called by the form's onSubmit
+  const internalSubmit = (payload: FormData) => {
+    // Append JSON stringified data
+    if (clientFormData.languagePreferences)
+      payload.append("languagePreferences", JSON.stringify(clientFormData.languagePreferences))
+    if (clientFormData.major) payload.append("major", clientFormData.major) // This is already string
+    if (clientFormData.levelOfStudy) payload.append("levelOfStudy", clientFormData.levelOfStudy) // This is already string
 
-    const actionFormData = new FormData()
+    // Consolidate interests from studiedSubjects, interestedMajors, hobbies
+    const interests = Array.from(new Set([
+        ...(clientFormData.studiedSubjects || []),
+        ...(clientFormData.interestedMajors || []),
+        ...(clientFormData.hobbies || [])
+    ]));
+    payload.append("interests", JSON.stringify(interests));
 
-    actionFormData.append("displayName", formData.displayName || "")
-    actionFormData.append("role", formData.role || "standard")
-    actionFormData.append("bio", formData.bio || "")
+    // The server action expects academicProfile and socialLinks as JSON strings
+    // For now, let's assume they are structured correctly in clientFormData or pass empty objects
+    // These were not explicitly part of the multi-step UI in the provided code,
+    // but the server action expects them. We'll pass them as currently constructed.
+    // If these were meant to be separate steps, the UI would need adjustment.
+    const academicProfileForPayload = { // Construct based on what server expects
+        major: clientFormData.major,
+        levelOfStudy: clientFormData.levelOfStudy,
+        studiedSubjects: clientFormData.studiedSubjects,
+    };
+    payload.append("academicProfile", JSON.stringify(academicProfileForPayload));
+    payload.append("socialLinks", JSON.stringify(clientFormData.socialProfiles || {}));
 
-    if (formData.languagePreferences)
-      actionFormData.append("languagePreferences", JSON.stringify(formData.languagePreferences))
-    if (formData.major) actionFormData.append("major", formData.major)
-    if (formData.levelOfStudy) actionFormData.append("levelOfStudy", formData.levelOfStudy)
-    if (formData.studiedSubjects) actionFormData.append("studiedSubjects", JSON.stringify(formData.studiedSubjects))
-    if (formData.interestedMajors) actionFormData.append("interestedMajors", JSON.stringify(formData.interestedMajors))
-    if (formData.hobbies) actionFormData.append("hobbies", JSON.stringify(formData.hobbies))
-    if (formData.socialProfiles) actionFormData.append("socialProfiles", JSON.stringify(formData.socialProfiles))
-    if (formData.agreements) actionFormData.append("agreements", JSON.stringify(formData.agreements))
 
-    if (croppedProfileImage) {
-      try {
-        const profileFile = dataURItoFile(croppedProfileImage, "profile.png")
-        actionFormData.append("avatarFile", profileFile)
-      } catch (e) {
-        console.error("Error converting profile image:", e)
-      }
+    // Append files if they exist
+    if (avatarFile) {
+      payload.append("avatarFile", avatarFile)
     }
-    if (croppedBannerImage) {
-      try {
-        const bannerFile = dataURItoFile(croppedBannerImage, "banner.png")
-        actionFormData.append("bannerFile", bannerFile)
-      } catch (e) {
-        console.error("Error converting banner image:", e)
-      }
+    if (bannerFile) {
+      payload.append("bannerFile", bannerFile)
     }
 
-    formAction(actionFormData)
+    // agreements is also not directly in the server action's Zod schema,
+    // but it's good practice to send it if it's collected.
+    // The server action can choose to ignore it or use it.
+    if (clientFormData.agreements) {
+        payload.append("agreements", JSON.stringify(clientFormData.agreements));
+    }
+
+
+    formAction(payload)
   }
 
   const TagInput = ({
@@ -321,10 +323,10 @@ export default function OnboardingPage() {
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyPress={handleKeyPress}
-          name={`${field}_input`}
+          // Removed name attribute as this input is for tag creation, not direct submission
         />
         <div className="flex flex-wrap gap-2">
-          {(formData[field] as string[])?.map((tag, index) => (
+          {(clientFormData[field] as string[])?.map((tag, index) => (
             <Badge key={index} variant="secondary" className="flex items-center gap-1">
               {tag}
               <X className="h-3 w-3 cursor-pointer" onClick={() => removeTag(field, tag)} />
@@ -349,21 +351,36 @@ export default function OnboardingPage() {
         })
       }
       reader.readAsDataURL(file)
+      // Clear the input value to allow re-uploading the same file if needed
+      event.target.value = ""
     }
   }
 
   const handleCropComplete = (croppedImageData: string) => {
-    if (cropperModal.type === "profile") {
-      setCroppedProfileImage(croppedImageData)
-    } else {
-      setCroppedBannerImage(croppedImageData)
+    const fileType = cropperModal.type === "profile" ? "profile.png" : "banner.png"
+    try {
+      const imageFile = dataURItoFile(croppedImageData, fileType)
+      if (cropperModal.type === "profile") {
+        setCroppedProfileImage(croppedImageData) // Keep for preview
+        setAvatarFile(imageFile) // Store File object for submission
+      } else {
+        setCroppedBannerImage(croppedImageData) // Keep for preview
+        setBannerFile(imageFile) // Store File object for submission
+      }
+    } catch (e) {
+      console.error("Error converting cropped image to file:", e)
+      toast({
+        title: "Image Processing Error",
+        description: "Could not process the cropped image. Please try again.",
+        variant: "destructive",
+      })
     }
     setCropperModal((prev) => ({ ...prev, isOpen: false }))
   }
 
   const renderStep = () => {
     switch (currentStep) {
-      case 1:
+      case 1: // Display Name
         return (
           <div className="space-y-4">
             <div className="text-center space-y-2">
@@ -375,16 +392,17 @@ export default function OnboardingPage() {
               <Label htmlFor="displayName">What should we call you?</Label>
               <Input
                 id="displayName"
-                name="displayName"
+                name="displayName" // This will be submitted directly
                 placeholder="Enter your display name"
-                value={formData.displayName || ""}
-                onChange={(e) => updateFormData("displayName", e.target.value)}
+                value={clientFormData.displayName || ""}
+                onChange={(e) => updateClientFormData("displayName", e.target.value)}
+                required
               />
             </div>
           </div>
         )
 
-      case 2:
+      case 2: // Role
         return (
           <div className="space-y-4">
             <div className="text-center space-y-2">
@@ -392,30 +410,33 @@ export default function OnboardingPage() {
               <h2 className="text-2xl font-bold">What's your role?</h2>
               <p className="text-muted-foreground">This helps us customize your experience.</p>
             </div>
+            {/* RadioGroup value is for client state, actual value for submission needs hidden input or direct name */}
             <RadioGroup
-              value={formData.role}
-              onValueChange={(value) => updateFormData("role", value as "standard" | "educator")}
+              value={clientFormData.role}
+              onValueChange={(value) => updateClientFormData("role", value as "standard" | "educator")}
               className="grid grid-cols-1 gap-4"
             >
               <div className="flex items-center space-x-2 border rounded-lg p-4 cursor-pointer hover:bg-accent">
-                <RadioGroupItem value="standard" id="student" name="role" />
+                <RadioGroupItem value="standard" id="student" />
                 <Label htmlFor="student" className="flex-1 cursor-pointer">
                   <div className="font-semibold">I am a Student</div>
                   <div className="text-sm text-muted-foreground">Learning new subjects and skills</div>
                 </Label>
               </div>
               <div className="flex items-center space-x-2 border rounded-lg p-4 cursor-pointer hover:bg-accent">
-                <RadioGroupItem value="educator" id="educator" name="role" />
+                <RadioGroupItem value="educator" id="educator" />
                 <Label htmlFor="educator" className="flex-1 cursor-pointer">
                   <div className="font-semibold">I am an Educator</div>
                   <div className="text-sm text-muted-foreground">Teaching and creating courses</div>
                 </Label>
               </div>
             </RadioGroup>
+            {/* Hidden input for role if RadioGroupItem doesn't support name directly for form submission */}
+             <input type="hidden" name="role" value={clientFormData.role || "standard"} />
           </div>
         )
 
-      case 3:
+      case 3: // Language Preferences
         return (
           <div className="space-y-4">
             <div className="text-center space-y-2">
@@ -427,9 +448,8 @@ export default function OnboardingPage() {
               <div className="space-y-2">
                 <Label>Interface Language</Label>
                 <Select
-                  name="languagePreferences.interface"
-                  value={formData.languagePreferences?.interface}
-                  onValueChange={(value) => updateNestedFormData("languagePreferences", "interface", value)}
+                  value={clientFormData.languagePreferences?.interface}
+                  onValueChange={(value) => updateNestedClientFormData("languagePreferences", "interface", value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select interface language" />
@@ -446,9 +466,8 @@ export default function OnboardingPage() {
               <div className="space-y-2">
                 <Label>Explanation Language</Label>
                 <Select
-                  name="languagePreferences.explanation"
-                  value={formData.languagePreferences?.explanation}
-                  onValueChange={(value) => updateNestedFormData("languagePreferences", "explanation", value)}
+                  value={clientFormData.languagePreferences?.explanation}
+                  onValueChange={(value) => updateNestedClientFormData("languagePreferences", "explanation", value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select explanation language" />
@@ -465,9 +484,8 @@ export default function OnboardingPage() {
               <div className="space-y-2">
                 <Label>Course Material Language</Label>
                 <Select
-                  name="languagePreferences.courseMaterial"
-                  value={formData.languagePreferences?.courseMaterial}
-                  onValueChange={(value) => updateNestedFormData("languagePreferences", "courseMaterial", value)}
+                  value={clientFormData.languagePreferences?.courseMaterial}
+                  onValueChange={(value) => updateNestedClientFormData("languagePreferences", "courseMaterial", value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select course material language" />
@@ -482,10 +500,11 @@ export default function OnboardingPage() {
                 </Select>
               </div>
             </div>
+            {/* Hidden input for languagePreferences JSON string will be added by internalSubmit */}
           </div>
         )
 
-      case 4:
+      case 4: // Field of Study (Major)
         return (
           <div className="space-y-4">
             <div className="text-center space-y-2">
@@ -497,16 +516,17 @@ export default function OnboardingPage() {
               <Label htmlFor="major">Major/Field of Study</Label>
               <Input
                 id="major"
-                name="major"
+                name="major" // This will be submitted directly
                 placeholder="e.g., Computer Science, Physics, Literature"
-                value={formData.major || ""}
-                onChange={(e) => updateFormData("major", e.target.value)}
+                value={clientFormData.major || ""}
+                onChange={(e) => updateClientFormData("major", e.target.value)}
+                required
               />
             </div>
           </div>
         )
 
-      case 5:
+      case 5: // Level of Study
         return (
           <div className="space-y-4">
             <div className="text-center space-y-2">
@@ -517,9 +537,9 @@ export default function OnboardingPage() {
             <div className="space-y-2">
               <Label>Level of Study</Label>
               <Select
-                name="levelOfStudy"
-                value={formData.levelOfStudy}
-                onValueChange={(value) => updateFormData("levelOfStudy", value)}
+                value={clientFormData.levelOfStudy}
+                onValueChange={(value) => updateClientFormData("levelOfStudy", value)}
+                // name="levelOfStudy" // Select itself doesn't directly submit, value managed by state
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select your level" />
@@ -532,11 +552,13 @@ export default function OnboardingPage() {
                   ))}
                 </SelectContent>
               </Select>
+               {/* Hidden input for levelOfStudy string will be added by internalSubmit or can be added here too */}
+               {/* <input type="hidden" name="levelOfStudy" value={clientFormData.levelOfStudy || ""} /> */}
             </div>
           </div>
         )
 
-      case 6:
+      case 6: // Studied Subjects (part of interests)
         return (
           <div className="space-y-4">
             <div className="text-center space-y-2">
@@ -545,10 +567,11 @@ export default function OnboardingPage() {
               <p className="text-muted-foreground">What subjects have you studied? Press Enter to add each one.</p>
             </div>
             <TagInput field="studiedSubjects" placeholder="Type a subject and press Enter" />
+            {/* Hidden input for interests JSON string will be added by internalSubmit */}
           </div>
         )
 
-      case 7:
+      case 7: // Interested Majors (part of interests)
         return (
           <div className="space-y-4">
             <div className="text-center space-y-2">
@@ -557,10 +580,11 @@ export default function OnboardingPage() {
               <p className="text-muted-foreground">What other fields interest you? Press Enter to add each one.</p>
             </div>
             <TagInput field="interestedMajors" placeholder="Type a field and press Enter" />
+             {/* Hidden input for interests JSON string will be added by internalSubmit */}
           </div>
         )
 
-      case 8:
+      case 8: // Hobbies (part of interests)
         return (
           <div className="space-y-4">
             <div className="text-center space-y-2">
@@ -571,10 +595,11 @@ export default function OnboardingPage() {
               </p>
             </div>
             <TagInput field="hobbies" placeholder="Type a hobby and press Enter" />
+             {/* Hidden input for interests JSON string will be added by internalSubmit */}
           </div>
         )
 
-      case 9:
+      case 9: // Social Profiles
         return (
           <div className="space-y-4">
             <div className="text-center space-y-2">
@@ -589,11 +614,11 @@ export default function OnboardingPage() {
                   <Twitter className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
                     id="twitter"
-                    name="socialProfiles.twitter"
+                    // name="socialProfiles.twitter" // Will be handled by JSON stringification
                     placeholder="@username"
                     className="pl-10"
-                    value={formData.socialProfiles?.twitter || ""}
-                    onChange={(e) => updateNestedFormData("socialProfiles", "twitter", e.target.value)}
+                    value={clientFormData.socialProfiles?.twitter || ""}
+                    onChange={(e) => updateNestedClientFormData("socialProfiles", "twitter", e.target.value)}
                   />
                 </div>
               </div>
@@ -603,11 +628,11 @@ export default function OnboardingPage() {
                   <Github className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
                     id="github"
-                    name="socialProfiles.github"
+                    // name="socialProfiles.github"
                     placeholder="username"
                     className="pl-10"
-                    value={formData.socialProfiles?.github || ""}
-                    onChange={(e) => updateNestedFormData("socialProfiles", "github", e.target.value)}
+                    value={clientFormData.socialProfiles?.github || ""}
+                    onChange={(e) => updateNestedClientFormData("socialProfiles", "github", e.target.value)}
                   />
                 </div>
               </div>
@@ -617,19 +642,20 @@ export default function OnboardingPage() {
                   <Linkedin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
                     id="linkedin"
-                    name="socialProfiles.linkedin"
+                    // name="socialProfiles.linkedin"
                     placeholder="profile-name"
                     className="pl-10"
-                    value={formData.socialProfiles?.linkedin || ""}
-                    onChange={(e) => updateNestedFormData("socialProfiles", "linkedin", e.target.value)}
+                    value={clientFormData.socialProfiles?.linkedin || ""}
+                    onChange={(e) => updateNestedClientFormData("socialProfiles", "linkedin", e.target.value)}
                   />
                 </div>
               </div>
             </div>
+            {/* Hidden input for socialLinks JSON string will be added by internalSubmit */}
           </div>
         )
 
-      case 10:
+      case 10: // Profile Customization (Bio, Images)
         return (
           <div className="space-y-6">
             <div className="text-center space-y-2">
@@ -644,23 +670,24 @@ export default function OnboardingPage() {
                   <Label htmlFor="bio">Bio</Label>
                   <Textarea
                     id="bio"
-                    name="bio"
+                    name="bio" // This will be submitted directly
                     placeholder="Tell us about yourself, your interests, and what you hope to achieve..."
-                    value={formData.bio || ""}
-                    onChange={(e) => updateFormData("bio", e.target.value)}
+                    value={clientFormData.bio || ""}
+                    onChange={(e) => updateClientFormData("bio", e.target.value)}
                     className="min-h-[100px]"
+                    maxLength={500}
                   />
-                  <div className="text-right text-sm text-muted-foreground">{(formData.bio || "").length}/500</div>
+                  <div className="text-right text-sm text-muted-foreground">{(clientFormData.bio || "").length}/500</div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Profile Picture</Label>
+                    <Label htmlFor="avatarFile">Profile Picture</Label>
                     <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
                       {croppedProfileImage ? (
                         <div className="space-y-2">
                           <img
-                            src={croppedProfileImage || "/placeholder.svg"}
+                            src={croppedProfileImage}
                             alt="Profile preview"
                             className="w-16 h-16 rounded-full mx-auto object-cover"
                           />
@@ -668,7 +695,7 @@ export default function OnboardingPage() {
                             type="button"
                             variant="outline"
                             size="sm"
-                            onClick={() => document.getElementById("profile-upload")?.click()}
+                            onClick={() => document.getElementById("avatarFile-input")?.click()}
                           >
                             Change Photo
                           </Button>
@@ -681,15 +708,16 @@ export default function OnboardingPage() {
                             type="button"
                             variant="outline"
                             size="sm"
-                            onClick={() => document.getElementById("profile-upload")?.click()}
+                            onClick={() => document.getElementById("avatarFile-input")?.click()}
                           >
                             Choose File
                           </Button>
                         </>
                       )}
                       <input
-                        id="profile-upload"
+                        id="avatarFile-input"
                         type="file"
+                        name="avatarFile" // Name attribute for form submission
                         accept="image/*"
                         className="hidden"
                         onChange={(e) => handleImageUpload(e, "profile")}
@@ -698,20 +726,20 @@ export default function OnboardingPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Profile Banner</Label>
+                    <Label htmlFor="bannerFile">Profile Banner</Label>
                     <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
                       {croppedBannerImage ? (
                         <div className="space-y-2">
                           <img
-                            src={croppedBannerImage || "/placeholder.svg"}
+                            src={croppedBannerImage}
                             alt="Banner preview"
                             className="w-full h-8 rounded mx-auto object-cover"
                           />
-                          <Button
+                           <Button
                             type="button"
                             variant="outline"
                             size="sm"
-                            onClick={() => document.getElementById("banner-upload")?.click()}
+                            onClick={() => document.getElementById("bannerFile-input")?.click()}
                           >
                             Change Banner
                           </Button>
@@ -720,19 +748,20 @@ export default function OnboardingPage() {
                         <>
                           <Camera className="h-8 w-8 text-gray-400 mx-auto mb-2" />
                           <p className="text-sm text-muted-foreground">Upload banner image</p>
-                          <Button
+                           <Button
                             type="button"
                             variant="outline"
                             size="sm"
-                            onClick={() => document.getElementById("banner-upload")?.click()}
+                            onClick={() => document.getElementById("bannerFile-input")?.click()}
                           >
                             Choose File
                           </Button>
                         </>
                       )}
                       <input
-                        id="banner-upload"
+                        id="bannerFile-input"
                         type="file"
+                        name="bannerFile" // Name attribute for form submission
                         accept="image/*"
                         className="hidden"
                         onChange={(e) => handleImageUpload(e, "banner")}
@@ -745,11 +774,11 @@ export default function OnboardingPage() {
               <div className="space-y-2">
                 <Label>Live Preview</Label>
                 <ProfilePreviewCard
-                  displayName={formData.displayName || ""}
-                  bio={formData.bio || ""}
+                  displayName={clientFormData.displayName || ""}
+                  bio={clientFormData.bio || ""}
                   profileImage={croppedProfileImage}
                   bannerImage={croppedBannerImage}
-                  hobbies={formData.hobbies as string[] | undefined}
+                  hobbies={clientFormData.hobbies as string[] | undefined}
                 />
               </div>
             </div>
@@ -765,7 +794,7 @@ export default function OnboardingPage() {
           </div>
         )
 
-      case 11:
+      case 11: // Agreements
         return (
           <div className="space-y-4">
             <div className="text-center space-y-2">
@@ -777,9 +806,10 @@ export default function OnboardingPage() {
               <div className="flex items-start space-x-2">
                 <Checkbox
                   id="terms"
-                  name="agreements.termsAndPrivacy"
-                  checked={formData.agreements?.termsAndPrivacy}
-                  onCheckedChange={(checked) => updateNestedFormData("agreements", "termsAndPrivacy", !!checked)}
+                  // name="agreements.termsAndPrivacy" // Handled by JSON stringification
+                  checked={clientFormData.agreements?.termsAndPrivacy}
+                  onCheckedChange={(checked) => updateNestedClientFormData("agreements", "termsAndPrivacy", !!checked)}
+                  required
                 />
                 <Label htmlFor="terms" className="text-sm leading-relaxed">
                   I agree to the{" "}
@@ -796,9 +826,9 @@ export default function OnboardingPage() {
               <div className="flex items-start space-x-2">
                 <Checkbox
                   id="personalized"
-                  name="agreements.personalizedContent"
-                  checked={formData.agreements?.personalizedContent}
-                  onCheckedChange={(checked) => updateNestedFormData("agreements", "personalizedContent", !!checked)}
+                  // name="agreements.personalizedContent"
+                  checked={clientFormData.agreements?.personalizedContent}
+                  onCheckedChange={(checked) => updateNestedClientFormData("agreements", "personalizedContent", !!checked)}
                 />
                 <Label htmlFor="personalized" className="text-sm">
                   I consent to personalized content and recommendations based on my learning activity.
@@ -807,15 +837,16 @@ export default function OnboardingPage() {
               <div className="flex items-start space-x-2">
                 <Checkbox
                   id="newsletter"
-                  name="agreements.newsletter"
-                  checked={formData.agreements?.newsletter}
-                  onCheckedChange={(checked) => updateNestedFormData("agreements", "newsletter", !!checked)}
+                  // name="agreements.newsletter"
+                  checked={clientFormData.agreements?.newsletter}
+                  onCheckedChange={(checked) => updateNestedClientFormData("agreements", "newsletter", !!checked)}
                 />
                 <Label htmlFor="newsletter" className="text-sm">
                   Subscribe to the Lyceum newsletter for updates and learning tips. (Optional)
                 </Label>
               </div>
             </div>
+            {/* Hidden input for agreements JSON string will be added by internalSubmit */}
           </div>
         )
 
@@ -826,7 +857,8 @@ export default function OnboardingPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
-      <form onSubmit={handleSubmit} className="w-full max-w-2xl">
+      {/* The form now uses action attribute and internalSubmit to prepare FormData */}
+      <form action={internalSubmit} className="w-full max-w-2xl">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
             <Logo size="lg" />
@@ -845,7 +877,7 @@ export default function OnboardingPage() {
 
         <div className="flex justify-between mt-6">
           <Button
-            type="button"
+            type="button" // Important: This should not submit the form
             variant="outline"
             onClick={handleBack}
             disabled={currentStep === 1}
@@ -856,18 +888,31 @@ export default function OnboardingPage() {
           </Button>
 
           {currentStep === TOTAL_STEPS ? (
-            <SubmitButton disabled={!canProceed()} />
+            // SubmitButton is now inside the form and will trigger the form's action
+            <SubmitButton disabled={!canProceed() || !clientFormData.agreements?.termsAndPrivacy} />
           ) : (
-            <Button type="button" onClick={handleNext} disabled={!canProceed()} className="flex items-center">
+            <Button
+              type="button" // Important: This should not submit the form
+              onClick={handleNext}
+              disabled={!canProceed()}
+              className="flex items-center"
+            >
               Next
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           )}
         </div>
 
+        {/* Display global form messages from server action state */}
         {state?.message && !state.redirectUrl && (
           <p className={`mt-4 text-sm ${state.errors ? "text-red-500" : "text-green-500"}`}>{state.message}</p>
         )}
+        {/* Display specific field errors (optional, based on server action response structure) */}
+        {state?.errors && Object.entries(state.errors).map(([field, messages]) => (
+            messages && messages.map((error: string, index: number) => (
+                <p key={`${field}-${index}`} className="mt-1 text-sm text-red-500">{field}: {error}</p>
+            ))
+        ))}
       </form>
     </div>
   )
