@@ -39,6 +39,7 @@ import Link from "next/link"
 import { languageLabels, levelOfStudyOptions } from "@/lib/mock-data"
 import { ImageCropperModal } from "@/components/ImageCropperModal"
 import { ProfilePreviewCard } from "@/components/ProfilePreviewCard"
+import { onboardingAction } from "@/app/actions/onboarding";
 
 const TOTAL_STEPS = 11
 
@@ -116,8 +117,6 @@ export default function OnboardingPage() {
   const [currentStep, setCurrentStep] = useState(1)
   const router = useRouter()
 
-  // Import the real onboardingAction
-  const { onboardingAction } = await import("@/app/actions/onboarding")
   const [state, formAction] = useFormState(onboardingAction, initialState as any) // Cast initialState if types mismatch slightly
 
   const [clientFormData, setClientFormData] = useState<Partial<ClientOnboardingData>>({
