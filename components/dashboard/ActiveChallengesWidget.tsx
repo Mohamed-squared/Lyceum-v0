@@ -4,26 +4,75 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Trophy } from "lucide-react"
 import Link from "next/link"
-import type { Challenge } from "@/lib/mock-data"
+
+interface Challenge {
+  id: string
+  title: string
+  type?: string
+  opponent?: {
+    id: string
+    name: string
+    avatar?: string
+  }
+  progress?: {
+    user: number
+    opponent: number
+  }
+  timeLeft?: string
+  status?: string
+  description?: string
+  reward?: string
+}
 
 interface ActiveChallengesWidgetProps {
   challenges: Challenge[]
 }
 
-export function ActiveChallengesWidget({ challenges }: ActiveChallengesWidgetProps) {
+export function ActiveChallengesWidget({ challenges = [] }: ActiveChallengesWidgetProps) {
   const formatProgress = (challenge: Challenge) => {
+    const defaultProgress = { user: 0, opponent: 0 }
+    const progress = challenge.progress || defaultProgress
+
     if (challenge.type === "credit_sprint") {
       return {
-        user: challenge.progress.user,
-        opponent: challenge.progress.opponent,
+        user: progress.user,
+        opponent: progress.opponent,
         isPercentage: false,
       }
     }
     return {
-      user: challenge.progress.user,
-      opponent: challenge.progress.opponent,
+      user: progress.user,
+      opponent: progress.opponent,
       isPercentage: true,
     }
+  }
+
+  if (!challenges || challenges.length === 0) {
+    return (
+      <section>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold">Active Challenges</h2>
+          <Button asChild variant="outline">
+            <Link href="/community/challenges">
+              <Trophy className="h-4 w-4 mr-2" />
+              View All
+            </Link>
+          </Button>
+        </div>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center py-8">
+              <Trophy className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No Active Challenges</h3>
+              <p className="text-muted-foreground mb-4">Challenge your study partners to boost your learning!</p>
+              <Button asChild>
+                <Link href="/community/challenges">Start a Challenge</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+    )
   }
 
   return (
@@ -40,15 +89,17 @@ export function ActiveChallengesWidget({ challenges }: ActiveChallengesWidgetPro
       <div className="space-y-4">
         {challenges.map((challenge) => {
           const progress = formatProgress(challenge)
+          const opponent = challenge.opponent || { id: "unknown", name: "Unknown Opponent", avatar: "" }
+
           return (
             <Card key={challenge.id}>
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h3 className="font-semibold">{challenge.title}</h3>
-                    <p className="text-sm text-gray-600">vs {challenge.opponent.name}</p>
+                    <h3 className="font-semibold">{challenge.title || "Untitled Challenge"}</h3>
+                    <p className="text-sm text-gray-600">vs {opponent.name}</p>
                   </div>
-                  <Badge variant="outline">{challenge.timeLeft} left</Badge>
+                  <Badge variant="outline">{challenge.timeLeft || "No time limit"}</Badge>
                 </div>
                 <div className="space-y-3">
                   <div className="flex justify-between text-sm">
@@ -60,7 +111,7 @@ export function ActiveChallengesWidget({ challenges }: ActiveChallengesWidgetPro
                     className="h-2"
                   />
                   <div className="flex justify-between text-sm">
-                    <span>{challenge.opponent.name}</span>
+                    <span>{opponent.name}</span>
                     <span>{progress.isPercentage ? `${progress.opponent}%` : progress.opponent}</span>
                   </div>
                   <Progress
