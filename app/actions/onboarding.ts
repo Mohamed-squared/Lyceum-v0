@@ -1,7 +1,7 @@
 // File: app/actions/onboarding.ts (Server Action for onboarding)
 "use server";
 
-import { supabaseAdmin } from '@/lib/supabase/server';
+import { supabaseAdmin, createClient } from '@/lib/supabase/server'; // Import createClient
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
@@ -47,11 +47,21 @@ export async function onboardingAction(
   prevState: OnboardingActionResult | undefined,
   formData: FormData
 ): Promise<OnboardingActionResult> {
-  // 1. Get User ID from session
-  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser();
+  // 1. Get User ID from session using the session-aware client
+  const supabase = createClient();
+  if (!supabase) {
+    console.error("Failed to create Supabase client for session.");
+    return {
+      message: "Server error: Could not connect to authentication service.",
+      success: false,
+      errors: { auth: ["Server error: Could not connect to authentication service."] },
+    };
+  }
+
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
 
   if (authError || !user) {
-    console.error("Authentication Error:", authError);
+    console.error("Authentication Error:", authError?.message || "User not found.");
     return {
       message: "User not authenticated. Please log in.",
       success: false,
