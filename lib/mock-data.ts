@@ -1,18 +1,20 @@
 export interface User {
-  id: string
-  username: string
-  email: string
-  avatar: string
-  credits: number
-  role: "user" | "admin" | "primary-admin"
-  displayName: string
-  bio?: string
-  university?: string
-  major?: string
-  graduationYear?: number
-  profileImage?: string
-  bannerImage?: string
-  enrollmentMode?: "full" | "viewer"
+  id: string; // From Supabase auth
+  email?: string; // From Supabase auth
+  display_name?: string; // From profiles
+  avatar_url?: string; // From profiles
+  credits?: number; // From profiles
+  role?: "user" | "admin" | "primary-admin"; // From profiles
+  badges?: any[]; // From profiles
+  // Optional fields from the previous User type, if they are still relevant
+  // and present in the 'profiles' table.
+  bio?: string;
+  university?: string;
+  major?: string;
+  graduationYear?: number;
+  // profileImage?: string; // if different from avatar_url
+  // bannerImage?: string;
+  // enrollmentMode?: "full" | "viewer";
 }
 
 export interface UserProfile {
