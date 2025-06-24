@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Logo } from "@/components/ui/logo"
 import { LatexRenderer } from "./LatexRenderer"
 import { Send, Sparkles } from "lucide-react"
 
@@ -70,7 +69,16 @@ export function FloatingAIHelper({ context, contextType = "text" }: FloatingAIHe
         size="icon"
       >
         <div className="relative">
-          <Logo variant="icon-only" size="sm" className="w-6 h-6 brightness-0 invert" />
+          {/* Lyceum Logo as SVG */}
+          <svg
+            className="w-6 h-6 text-white"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path d="M12 2L2 7v10c0 5.55 3.84 9.74 9 11 5.16-1.26 9-5.45 9-11V7l-10-5z" />
+            <path d="M12 7v10M8 10l4-3 4 3" stroke="currentColor" strokeWidth="1.5" fill="none" />
+          </svg>
           <Sparkles className="w-3 h-3 absolute -top-1 -right-1 text-yellow-400 animate-pulse" />
         </div>
       </Button>
@@ -81,7 +89,15 @@ export function FloatingAIHelper({ context, contextType = "text" }: FloatingAIHe
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center">
-                <Logo variant="icon-only" size="sm" className="w-4 h-4 brightness-0 invert" />
+                <svg
+                  className="w-4 h-4 text-white"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path d="M12 2L2 7v10c0 5.55 3.84 9.74 9 11 5.16-1.26 9-5.45 9-11V7l-10-5z" />
+                  <path d="M12 7v10M8 10l4-3 4 3" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                </svg>
               </div>
               Lyceum AI Assistant - Contextual Help
             </DialogTitle>
@@ -94,7 +110,15 @@ export function FloatingAIHelper({ context, contextType = "text" }: FloatingAIHe
                 {message.role === "assistant" && (
                   <Avatar className="w-8 h-8">
                     <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600">
-                      <Logo variant="icon-only" size="sm" className="w-4 h-4 brightness-0 invert" />
+                      <svg
+                        className="w-4 h-4 text-white"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path d="M12 2L2 7v10c0 5.55 3.84 9.74 9 11 5.16-1.26 9-5.45 9-11V7l-10-5z" />
+                        <path d="M12 7v10M8 10l4-3 4 3" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                      </svg>
                     </AvatarFallback>
                   </Avatar>
                 )}
@@ -111,7 +135,15 @@ export function FloatingAIHelper({ context, contextType = "text" }: FloatingAIHe
               <div className="flex gap-3 justify-start">
                 <Avatar className="w-8 h-8">
                   <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600">
-                    <Logo variant="icon-only" size="sm" className="w-4 h-4 brightness-0 invert" />
+                    <svg
+                      className="w-4 h-4 text-white"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path d="M12 2L2 7v10c0 5.55 3.84 9.74 9 11 5.16-1.26 9-5.45 9-11V7l-10-5z" />
+                      <path d="M12 7v10M8 10l4-3 4 3" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                    </svg>
                   </AvatarFallback>
                 </Avatar>
                 <div className="bg-muted rounded-lg p-3">
