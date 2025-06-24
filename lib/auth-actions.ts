@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
 
-export async function signInWithEmail(formData: FormData) {
+export async function signInWithEmail(prevState: any, formData: FormData) {
   // Add validation to ensure formData exists
   if (!formData || typeof formData.get !== "function") {
     return { error: "Invalid form data received" }
@@ -37,7 +37,7 @@ export async function signInWithEmail(formData: FormData) {
   redirect("/dashboard")
 }
 
-export async function signUpWithEmail(formData: FormData) {
+export async function signUpWithEmail(prevState: any, formData: FormData) {
   // Add validation to ensure formData exists
   if (!formData || typeof formData.get !== "function") {
     return { error: "Invalid form data received" }

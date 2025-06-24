@@ -18,8 +18,9 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const isLandingPage = pathname === "/"
   const isAdminPage = pathname?.startsWith("/admin")
+  const isAuthPage = pathname?.startsWith("/auth")
 
-  if (isLandingPage) {
+  if (isLandingPage || isAuthPage) {
     return <>{children}</>
   }
 
