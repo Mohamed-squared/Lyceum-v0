@@ -1,37 +1,39 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr"
-import { createClient as createSupabaseClient } from "@supabase/supabase-js"
+import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 
 export function createClient() {
+  const cookieStore = cookies()
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    console.warn("Supabase environment variables not configured. Using mock mode.")
-    return null
+    console.warn("Supabase environment variables not found")
+    // Return a mock client that won't crash
+    return {
+      auth: {
+        getUser: () => Promise.resolve({ data: { user: null }, error: null }),
+      },
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            single: () => Promise.resolve({ data: null, error: { message: "Supabase not configured" } }),
+          }),
+        }),
+      }),
+    } as any
   }
-
-  const cookieStore = cookies()
 
   return createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value
+      getAll() {
+        return cookieStore.getAll()
       },
-      set(name: string, value: string, options: CookieOptions) {
+      setAll(cookiesToSet) {
         try {
-          cookieStore.set({ name, value, ...options })
-        } catch (error) {
-          // The `set` method was called from a Server Component.
-          // This can be ignored if you have middleware refreshing
-          // user sessions.
-        }
-      },
-      remove(name: string, options: CookieOptions) {
-        try {
-          cookieStore.set({ name, value: "", ...options })
-        } catch (error) {
-          // The `delete` method was called from a Server Component.
+          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
+        } catch {
+          // The `setAll` method was called from a Server Component.
           // This can be ignored if you have middleware refreshing
           // user sessions.
         }
@@ -40,23 +42,36 @@ export function createClient() {
   })
 }
 
-// Create admin client for server-side operations
 export function createAdminClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
   if (!supabaseUrl || !supabaseServiceKey) {
-    console.warn("Supabase admin environment variables not configured.")
-    return null
+    console.warn("Supabase admin environment variables not found")
+    // Return a mock client
+    return {
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            single: () => Promise.resolve({ data: null, error: { message: "Supabase not configured" } }),
+          }),
+        }),
+      }),
+      rpc: () => Promise.resolve({ data: null, error: { message: "Supabase not configured" } }),
+    } as any
   }
 
-  return createSupabaseClient(supabaseUrl, supabaseServiceKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
+  return createServerClient(supabaseUrl, supabaseServiceKey, {
+    cookies: {
+      getAll() {
+        return []
+      },
+      setAll() {
+        // Admin client doesn't need to set cookies
+      },
     },
   })
 }
 
-// Export the admin client as a named export (but don't instantiate it at module level)
+// Keep the old export for backward compatibility
 export const supabaseAdmin = createAdminClient()
