@@ -25,16 +25,16 @@ export async function GET(req: Request) {
     // Fetch user stats (credits, badges, etc.)
     const { data: profile, error: profileErr } = await supabaseAdmin
       .from('profiles')
-      .select('credits, badges, display_name, avatar_url')
+      .select('credits, badges, display_name, avatar_url, role') // Added role
       .eq('id', userId)
       .single();
 
     if (profileErr) return NextResponse.json({ error: profileErr.message, type: 'profile' }, { status: 500 });
 
     return NextResponse.json({
-      myCourses: myCourses?.map((e: any) => e.courses) || [], // MODIFIED: Added type any for e
-      partners: partners || [], // MODIFIED: handle null partners
-      userStats: profile,
+      myCourses: myCourses?.map((e: any) => e.courses) || [],
+      partners: partners || [],
+      user: profile ? { ...profile, name: profile.display_name } : null, // Changed key and mapped display_name
     });
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 500 });
