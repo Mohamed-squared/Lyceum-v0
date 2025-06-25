@@ -51,11 +51,11 @@ export async function signUpWithEmail(prevState: any, formData: FormData) {
 
   const email = formData.get("email") as string
   const password = formData.get("password") as string
-  const name = formData.get("name") as string
+  const username = formData.get("username") as string // Changed from name to username
 
   // Add validation for required fields
-  if (!name) {
-    return { error: "Full name is required." }
+  if (!username) { // Changed from name to username
+    return { error: "Username is required." } // Changed message
   }
   if (!email) {
     return { error: "Email is required." }
@@ -68,7 +68,7 @@ export async function signUpWithEmail(prevState: any, formData: FormData) {
     email,
     password,
     options: {
-      data: { full_name: name }, // Pass full name for the trigger
+      data: { username: username }, // Pass username for the trigger
       emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
     },
   })
