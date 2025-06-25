@@ -2,7 +2,6 @@
 
 import { serve } from 'std/server';
 import { createClient } from '@supabase/supabase-js';
-import type { MultipartFormData } from 'some-multipart-parser'; // You'll need to parse multipart form data for file uploads
 import fetch from 'node-fetch';
 import { enqueueJob } from '@/lib/jobQueue'; // MODIFIED: Import enqueueJob
 
