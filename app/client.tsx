@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { UserProvider } from "@/lib/contexts/UserContext"
 import { NavigationProvider } from "@/lib/contexts/NavigationContext"
 import { SidebarProvider } from "@/lib/contexts/SidebarContext"
+import { ThemeProvider as CustomThemeProvider } from "@/lib/contexts/ThemeContext"
 import { DynamicLayout } from "@/components/layout/DynamicLayout"
 import { Header } from "@/components/layout/Header"
 import { FloatingAIHelper } from "@/components/FloatingAIHelper"
@@ -49,13 +50,15 @@ export default function Client({
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <UserProvider>
-            <NavigationProvider>
-              <SidebarProvider>
-                <div className="min-h-screen bg-background">
-                  <LayoutContent>{children}</LayoutContent>
-                </div>
-              </SidebarProvider>
-            </NavigationProvider>
+            <CustomThemeProvider>
+              <NavigationProvider>
+                <SidebarProvider>
+                  <div className="min-h-screen bg-background">
+                    <LayoutContent>{children}</LayoutContent>
+                  </div>
+                </SidebarProvider>
+              </NavigationProvider>
+            </CustomThemeProvider>
           </UserProvider>
         </ThemeProvider>
       </body>

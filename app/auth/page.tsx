@@ -107,8 +107,8 @@ export default function AuthPage() {
             <TabsContent value="signup" className="space-y-4">
               <form action={signUpAction} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="signup-name">Full Name</Label>
-                  <Input id="signup-name" name="name" type="text" placeholder="Enter your full name" required />
+                  <Label htmlFor="signup-username">Username</Label>
+                  <Input id="signup-username" name="username" type="text" placeholder="Choose a username" required />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-email">Email</Label>

@@ -25,6 +25,7 @@ import {
   LogOut,
   X,
   ChevronDown,
+  ShoppingCart,
 } from "lucide-react"
 import { signOut } from "@/lib/auth-actions"
 import { useUser } from "@/lib/contexts/UserContext"
@@ -33,6 +34,7 @@ const navigationItems = [
   { name: "Dashboard", href: "/dashboard", icon: Home },
   { name: "My Courses", href: "/my-courses", icon: BookOpen },
   { name: "TestGen", href: "/testgen", icon: Zap },
+  { name: "Marketplace", href: "/marketplace", icon: ShoppingCart },
   { name: "Inbox", href: "/inbox", icon: Inbox },
 ]
 

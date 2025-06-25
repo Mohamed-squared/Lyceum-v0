@@ -7,13 +7,24 @@ import { cn } from "@/lib/utils"
 
 const Avatar = React.forwardRef<
   React.ElementRef<typeof AvatarPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Root>
->(({ className, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Root> & {
+    decorationUrl?: string
+  }
+>(({ className, decorationUrl, ...props }, ref) => (
   <AvatarPrimitive.Root
     ref={ref}
     className={cn("relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full", className)}
     {...props}
-  />
+  >
+    {props.children}
+    {decorationUrl && (
+      <img
+        src={decorationUrl || "/placeholder.svg"}
+        alt="Avatar decoration"
+        className="absolute inset-0 z-10 w-full h-full object-cover rounded-full pointer-events-none"
+      />
+    )}
+  </AvatarPrimitive.Root>
 ))
 Avatar.displayName = AvatarPrimitive.Root.displayName
 
