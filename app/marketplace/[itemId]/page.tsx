@@ -6,9 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Input } from "@/components/ui/input"
 import { ArrowLeft, Coins, ShoppingCart, Palette, Trophy, Crown, Sparkles } from "lucide-react"
 import Link from "next/link"
+import { EnhancedThemePreview } from "./components/EnhancedThemePreview"
+import { ThemeApplyButton } from "../components/ThemeApplyButton"
 
 interface MarketplaceItem {
   id: string
@@ -51,45 +52,8 @@ const getCategoryIcon = (category: string) => {
   }
 }
 
-function ThemePreview({ cssVariables }: { cssVariables: Record<string, string> }) {
-  const previewStyle = Object.entries(cssVariables).reduce(
-    (acc, [key, value]) => {
-      acc[key] = `hsl(${value})`
-      return acc
-    },
-    {} as Record<string, string>,
-  )
-
-  return (
-    <div className="p-6 rounded-lg border space-y-4" style={previewStyle}>
-      <h3 className="text-lg font-semibold" style={{ color: previewStyle["--foreground"] }}>
-        Theme Preview
-      </h3>
-      <div className="space-y-3">
-        <Button
-          style={{
-            backgroundColor: previewStyle["--primary"],
-            color: previewStyle["--primary-foreground"],
-          }}
-        >
-          Primary Button
-        </Button>
-        <Card style={{ backgroundColor: previewStyle["--secondary"] }}>
-          <CardContent className="p-4">
-            <p style={{ color: previewStyle["--foreground"] }}>This is how cards will look with this theme applied.</p>
-          </CardContent>
-        </Card>
-        <Input
-          placeholder="Sample input field"
-          style={{
-            backgroundColor: previewStyle["--background"],
-            borderColor: previewStyle["--accent"],
-            color: previewStyle["--foreground"],
-          }}
-        />
-      </div>
-    </div>
-  )
+function ThemePreview({ cssVariables, themeName }: { cssVariables: Record<string, string>; themeName: string }) {
+  return <EnhancedThemePreview cssVariables={cssVariables} themeName={themeName} />
 }
 
 function DecorationPreview({ decorationUrl }: { decorationUrl: string }) {
@@ -225,7 +189,9 @@ export default function MarketplaceItemPage() {
           </Card>
 
           {/* Preview Section */}
-          {item.category === "themes" && item.cssVariables && <ThemePreview cssVariables={item.cssVariables} />}
+          {item.category === "themes" && item.cssVariables && (
+            <ThemePreview cssVariables={item.cssVariables} themeName={item.name} />
+          )}
 
           {item.category === "decorations" && item.decorationUrl && (
             <DecorationPreview decorationUrl={item.decorationUrl} />
@@ -298,6 +264,15 @@ export default function MarketplaceItemPage() {
                   </>
                 )}
               </Button>
+
+              {item.category === "themes" && item.cssVariables && (
+                <ThemeApplyButton
+                  themeId={item.id}
+                  themeName={item.name}
+                  cssVariables={item.cssVariables}
+                  isOwned={item.owned}
+                />
+              )}
             </CardContent>
           </Card>
         </div>

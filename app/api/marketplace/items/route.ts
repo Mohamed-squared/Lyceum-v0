@@ -3,6 +3,38 @@ import { type NextRequest, NextResponse } from "next/server"
 // Mock marketplace items data
 const mockMarketplaceItems = [
   {
+    id: "forest-sanctuary",
+    name: "Forest Sanctuary",
+    description:
+      "Immerse yourself in nature with this calming forest-inspired theme featuring rich greens and earth tones",
+    price: 850,
+    category: "themes",
+    image: "/themes/forest-sanctuary-hero.png",
+    rarity: "rare",
+    owned: false,
+    cssVariables: {
+      "--background": "47 15% 94%", // Warm cream background
+      "--foreground": "120 25% 15%", // Deep forest green text
+      "--card": "47 20% 97%", // Light cream cards
+      "--card-foreground": "120 25% 15%",
+      "--popover": "47 20% 97%",
+      "--popover-foreground": "120 25% 15%",
+      "--primary": "120 40% 25%", // Forest green primary
+      "--primary-foreground": "47 15% 94%",
+      "--secondary": "35 25% 85%", // Warm beige secondary
+      "--secondary-foreground": "120 25% 15%",
+      "--muted": "35 20% 88%", // Light earth tone
+      "--muted-foreground": "120 15% 35%",
+      "--accent": "85 30% 70%", // Sage green accent
+      "--accent-foreground": "120 25% 15%",
+      "--destructive": "0 65% 50%",
+      "--destructive-foreground": "47 15% 94%",
+      "--border": "35 20% 82%", // Soft earth border
+      "--input": "35 20% 88%",
+      "--ring": "120 40% 25%",
+    },
+  },
+  {
     id: "1",
     name: "Dark Ocean Theme",
     description: "A beautiful dark theme with ocean-inspired colors and calming blue tones",
