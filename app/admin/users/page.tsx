@@ -65,10 +65,22 @@ const AdminUsersPage = () => {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const [searchTerm, setSearchTerm] = useState(searchParams.get("search") || "");
-  const [roleFilter, setRoleFilter] = useState(searchParams.get("role") || "all");
-  const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "all");
-  const currentPage = parseInt(searchParams.get("page") || "1", 10);
+  const [initialParamsLoaded, setInitialParamsLoaded] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Initialize state from URL params after component mounts
+  useEffect(() => {
+    if (!initialParamsLoaded) {
+      setSearchTerm(searchParams.get("search") || "");
+      setRoleFilter(searchParams.get("role") || "all");
+      setStatusFilter(searchParams.get("status") || "all");
+      setCurrentPage(parseInt(searchParams.get("page") || "1", 10));
+      setInitialParamsLoaded(true);
+    }
+  }, [searchParams, initialParamsLoaded]);
 
   const queryParams = useMemo(() => {
     const params = new URLSearchParams();
@@ -81,26 +93,25 @@ const AdminUsersPage = () => {
   }, [searchTerm, roleFilter, statusFilter, currentPage]);
 
   useEffect(() => {
-    // Update URL when filters change
-    router.replace(`${pathname}?${queryParams.toString()}`, { scroll: false });
-  }, [queryParams, pathname, router]);
-
+    if (initialParamsLoaded) {
+      router.replace(`${pathname}?${queryParams.toString()}`, { scroll: false });
+    }
+  }, [queryParams, pathname, router, initialParamsLoaded]);
 
   const { data, error, isLoading, mutate } = useSWR<AdminUsersApiResponse>(
-    ["/api/admin/users", queryParams.toString()], // SWR key includes query string for re-fetching
+    initialParamsLoaded ? ["/api/admin/users", queryParams.toString()] : null, // SWR key includes query string for re-fetching
     ([_url, queryString]) => getAdminUsers(Object.fromEntries(new URLSearchParams(queryString))),
     { keepPreviousData: true }
   );
 
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(event.target.value);
+    setCurrentPage(1); // Reset to first page when searching
   };
 
   const handlePageChange = (newPage: number) => {
     if (newPage > 0 && newPage <= (data?.totalPages || 1)) {
-        const newParams = new URLSearchParams(queryParams);
-        newParams.set("page", newPage.toString());
-        router.push(`${pathname}?${newParams.toString()}`, { scroll: false });
+      setCurrentPage(newPage);
     }
   };
 
@@ -109,6 +120,17 @@ const AdminUsersPage = () => {
   const handleDeleteUser = (userId: string) => console.log("Delete user:", userId);
   const handleToggleUserStatus = (userId: string, currentStatus: string) => console.log("Toggle status for user:", userId, "current:", currentStatus);
 
+  // Show loading state until params are loaded
+  if (!initialParamsLoaded) {
+    return (
+      <div className="p-6 bg-background min-h-screen">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-foreground">User Management</h1>
+          <p className="text-muted-foreground mt-2">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (error && !data) { // Show error only if there's no stale data to display
     return (
@@ -149,7 +171,7 @@ const AdminUsersPage = () => {
               />
             </div>
             <div className="flex gap-2 w-full sm:w-auto">
-              <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <Select value={roleFilter} onValueChange={(value) => { setRoleFilter(value); setCurrentPage(1); }}>
                 <SelectTrigger className="w-full sm:w-[180px]">
                   <SelectValue placeholder="Filter by role" />
                 </SelectTrigger>
@@ -158,7 +180,7 @@ const AdminUsersPage = () => {
                   {USER_ROLES.map(role => <SelectItem key={role} value={role} className="capitalize">{role}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <Select value={statusFilter} onValueChange={(value) => { setStatusFilter(value); setCurrentPage(1); }}>
                 <SelectTrigger className="w-full sm:w-[180px]">
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>

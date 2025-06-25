@@ -64,10 +64,22 @@ const AdminCoursesPage = () => {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const [searchTerm, setSearchTerm] = useState(searchParams.get("search") || "");
-  const [subjectFilter, setSubjectFilter] = useState(searchParams.get("subject") || "all");
-  const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "all");
-  const currentPage = parseInt(searchParams.get("page") || "1", 10);
+  const [initialParamsLoaded, setInitialParamsLoaded] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [subjectFilter, setSubjectFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Initialize state from URL params after component mounts
+  useEffect(() => {
+    if (!initialParamsLoaded) {
+      setSearchTerm(searchParams.get("search") || "");
+      setSubjectFilter(searchParams.get("subject") || "all");
+      setStatusFilter(searchParams.get("status") || "all");
+      setCurrentPage(parseInt(searchParams.get("page") || "1", 10));
+      setInitialParamsLoaded(true);
+    }
+  }, [searchParams, initialParamsLoaded]);
 
   const queryParams = useMemo(() => {
     const params = new URLSearchParams();
@@ -82,30 +94,25 @@ const AdminCoursesPage = () => {
   const swrKey = useMemo(() => ["/api/admin/courses", queryParams.toString()], [queryParams]);
 
   useEffect(() => {
-    router.replace(`${pathname}?${queryParams.toString()}`, { scroll: false });
-  }, [queryParams, pathname, router]);
+    if (initialParamsLoaded) {
+      router.replace(`${pathname}?${queryParams.toString()}`, { scroll: false });
+    }
+  }, [queryParams, pathname, router, initialParamsLoaded]);
 
   const { data, error, isLoading, mutate } = useSWR<AdminCoursesApiResponse>(
-    swrKey,
+    initialParamsLoaded ? swrKey : null,
     ([_url, queryString]) => getAdminCourses(Object.fromEntries(new URLSearchParams(queryString))),
     { keepPreviousData: true }
   );
 
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(event.target.value);
+    setCurrentPage(1); // Reset to first page when searching
   };
 
   const handlePageChange = (newPage: number) => {
-     if (newPage > 0 && newPage <= (data?.totalPages || 1)) {
-        const newParams = new URLSearchParams(queryParams);
-        newParams.set("page", newPage.toString());
-        // No need to call router.push here as useEffect already handles it
-        // Manually trigger a re-fetch might not be necessary if SWR key changes enough
-        // but for page changes, explicitly updating the URL via router and letting useEffect handle it is cleaner.
-        // For immediate feedback, one could update a local page state and let SWR use that in its key.
-        // However, relying on URL params for page state is generally good for bookmarking/sharing.
-        // The current setup with useEffect should handle re-fetching correctly when queryParams (and thus swrKey) changes.
-         router.push(`${pathname}?${newParams.toString()}`, { scroll: false });
+    if (newPage > 0 && newPage <= (data?.totalPages || 1)) {
+      setCurrentPage(newPage);
     }
   };
 
@@ -136,6 +143,18 @@ const AdminCoursesPage = () => {
         mutate();
     }
   };
+
+  // Show loading state until params are loaded
+  if (!initialParamsLoaded) {
+    return (
+      <div className="p-6 bg-background min-h-screen">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-foreground">Course Management</h1>
+          <p className="text-muted-foreground mt-2">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (error && !data) {
     return (
@@ -174,7 +193,7 @@ const AdminCoursesPage = () => {
               />
             </div>
             <div className="flex gap-2 w-full sm:w-auto">
-              <Select value={subjectFilter} onValueChange={setSubjectFilter}>
+              <Select value={subjectFilter} onValueChange={(value) => { setSubjectFilter(value); setCurrentPage(1); }}>
                 <SelectTrigger className="w-full sm:w-[180px]">
                   <SelectValue placeholder="Filter by subject" />
                 </SelectTrigger>
@@ -183,7 +202,7 @@ const AdminCoursesPage = () => {
                   {COURSE_SUBJECTS_MOCK.map(subject => <SelectItem key={subject} value={subject}>{subject}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <Select value={statusFilter} onValueChange={(value) => { setStatusFilter(value); setCurrentPage(1); }}>
                 <SelectTrigger className="w-full sm:w-[180px]">
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
